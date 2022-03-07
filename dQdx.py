@@ -5,13 +5,14 @@ import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 
 import h5py
+import os
 
 from trackAnalyzer import *
 from utils import *
 from plots import *
 from cuts import *
 
-def main(infile, savefit = False, plotfile = "None", verbose = False, plotEvents = False, plotHist = False):
+def main(infile, outdir = "None", plotfile = "None", verbose = False, plotEvents = False, plotHist = False):
     f = h5py.File(infile, 'r')
     events = f['events']
     hits = f['hits']
@@ -135,8 +136,9 @@ def main(infile, savefit = False, plotfile = "None", verbose = False, plotEvents
 
     # plt.show()
 
-    if savefit:
-        np.save(infile.replace('.h5', '_fitResult.txt'),
+    if outdir != "None":
+        baseOutfileName = infile.split('/')[-1].replace('.h5', '_fitResult')
+        np.save(os.path.join(outdir, baseOutfileName),
                 np.array([bf[-1], err[-1]]))
         
 if __name__ == '__main__':
@@ -145,8 +147,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('infile',
                         type = str)
-    parser.add_argument('--savefit', '-s',
-                        action = 'store_true')
+    # parser.add_argument('--savefit', '-s',
+    #                     action = 'store_true')
+    parser.add_argument('--outdir', '-o',
+                        default = 'None')
     parser.add_argument('--plotfile', '-p',
                         default = 'None',
                         type = str)
