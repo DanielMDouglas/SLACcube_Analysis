@@ -18,9 +18,9 @@ def main(infile, outdir = "None", plotfile = "None", verbose = False, plotEvents
     hits = f['hits']
     tracks = f['tracks']
 
-    tdBins = np.linspace(0, 30, 31)
+    tdBins = np.linspace(0, 40, 41)
     # dQdxRBins = np.linspace(0, 1.5, 31)
-    dQdxBins = np.linspace(0, 50, 31)
+    dQdxBins = np.linspace(0, 50, 51)
     # dQdxRBins = np.linspace(0, 50, 51)
 
     tdR = np.array([])
@@ -41,6 +41,8 @@ def main(infile, outdir = "None", plotfile = "None", verbose = False, plotEvents
                 # dQdxR = np.concatenate([dQdxR, dqdx])
 
                 ts, dqdx = thisAna.dQdx(np.linspace(0, 300, 16))
+                # plt.scatter(*thisAna.dQdx(np.linspace(0, 300, 16)))
+                # plt.show()
                 td = np.concatenate([td, ts])
                 dQdx = np.concatenate([dQdx, dqdx])
 
@@ -56,8 +58,9 @@ def main(infile, outdir = "None", plotfile = "None", verbose = False, plotEvents
         absAx = absFig.gca()
         plt.hist2d(td, dQdx, bins = (tdBins, dQdxBins), cmap = 'Blues')
         plt.xlabel(r'$t - t_s$ [$\mathrm{\mu}$s]')
-        plt.ylabel(r'$dQdx$')
-        plt.colorbar()
+        plt.ylabel(r'$dQ/dx$')
+        cb = plt.colorbar()
+        cb.set_label(r'Track segments')
 
     import scipy.optimize as opt
 
@@ -102,7 +105,7 @@ def main(infile, outdir = "None", plotfile = "None", verbose = False, plotEvents
 
     if plotfile != "None":
         # plot the fitted model
-        fineTspace = np.linspace(0, 30, 1000)
+        fineTspace = np.linspace(0, 40, 1000)
         absAx.plot(fineTspace, lt(fineTspace, *bf), ls = '-', color = 'red')
 
         # include the fit result
@@ -114,6 +117,7 @@ def main(infile, outdir = "None", plotfile = "None", verbose = False, plotEvents
                               r'$[$\mathrm{\mu}$s]']),
                    color = 'red')
 
+        absFig.tight_layout()
         absFig.savefig(plotfile, dpi = 300)
 
     # # plot the 1-D time projection

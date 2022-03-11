@@ -1,8 +1,43 @@
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 
 from consts import *
+
+DUNEblue = '#7FAED5'
+DUNElightOrange = '#F19E54'
+DUNEdarkOrange = '#F0652B'
+DUNEgreen = '#8ACA6F'
+DUNEgray = '#626466'
+DUNEyellow = '#FBD03F'
+DUNEpurple = '#5B3069'
+DUNElightPurple = '#8C6E96'
+DUNEcyan = '#42C2A8'
+DUNEpink = '#F7AEC2'
+
+DUNEcolors = [DUNEblue,
+              DUNElightOrange,
+              DUNEgreen,
+              DUNEdarkOrange,
+              DUNEyellow,
+              DUNEpink,
+              DUNEpurple,
+              DUNEcyan,
+              DUNEgray,
+              DUNElightPurple,
+]
+
+LaTeXflavor = {"numu": r'$\nu_\mu$',
+               "numubar": r'$\bar{\nu}_\mu$',
+               "nue": r'$\nu_e$',
+               "nuebar": r'$\bar{\nu}_e$',
+               "nutau": r'$\nu_\tau$',
+               "nutaubar": r'$\bar{\nu}_\tau$'}
+
+matplotlib.rc('font', family = 'FreeSerif', size = 16, weight = 'bold')
+matplotlib.rc('text', usetex = True)
+matplotlib.rc('axes', prop_cycle = matplotlib.cycler(color = DUNEcolors))
 
 def plot_chargeHist(q):
     chargeHistFig = plt.figure()

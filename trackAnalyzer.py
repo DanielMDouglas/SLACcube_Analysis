@@ -23,20 +23,31 @@ class trackAnalyzer:
                                  self.trackHits['py'],
                                  vd*clock_interval*(self.trackHits['ts'] - self.t0)]).T
 
-        hitTs = self.trackHits['ts']
+        hitTs = self.trackHits['ts'] 
+        hitTs -= np.min(hitTs)
+        hitTs = hitTs*clock_interval
         
         trackDist = dot(hitPositions - startPoint, trackDir)
         trackDist -= trackDist[0]
 
         hitCharge = self.trackHits['q']
         
-        counts, bins = np.histogram(trackDist, weights = hitCharge, bins = xBins)
+        sumCharge, bins = np.histogram(trackDist,
+                                       weights = hitCharge,
+                                       bins = xBins)
+        sumTs, bins = np.histogram(trackDist,
+                                   weights = hitTs,
+                                   bins = xBins)
+        nHits, bins = np.histogram(trackDist,
+                                   bins = xBins)
 
         dx = 0.5*np.diff(bins)
         xMean = 0.5*(bins[1:] + bins[:-1])
 
-        dqdx = counts/dx
+        dqdx = sumCharge/dx
 
+        meanTs = sumTs/nHits
+        
         # dQdxRatio = dqdx[1:]/dqdx[0]
 
         # print (dqdx)
@@ -54,11 +65,16 @@ class trackAnalyzer:
         # dQdxRatio = dqdx/dqdx[0]
         tsBinCenters = tsBinCenters - tsBinCenters[0]
 
-        tsBinCenters = tsBinCenters[dQdxRatio != 0]
-        dQdxRatio = dQdxRatio[dQdxRatio != 0]
+        # tsBinCenters = tsBinCenters[dQdxRatio != 0]
+        # dQdxRatio = dQdxRatio[dQdxRatio != 0]
+        dQdxRatio = dQdxRatio[~np.isnan(meanTs)]
+        meanTs = meanTs[~np.isnan(meanTs)]
+
+        # segmentTs = tsBinCenters
+        segmentTs = meanTs
 
         # print (dQdxRatio[0])
-        return tsBinCenters, dQdxRatio
+        return segmentTs, dQdxRatio
 
         # return tsBinCenters, dqdx
 
