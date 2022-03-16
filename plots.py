@@ -28,15 +28,15 @@ DUNEcolors = [DUNEblue,
               DUNElightPurple,
 ]
 
-LaTeXflavor = {"numu": r'$\nu_\mu$',
-               "numubar": r'$\bar{\nu}_\mu$',
-               "nue": r'$\nu_e$',
-               "nuebar": r'$\bar{\nu}_e$',
-               "nutau": r'$\nu_\tau$',
-               "nutaubar": r'$\bar{\nu}_\tau$'}
+# LaTeXflavor = {"numu": r'$\nu_\mu$',
+#                "numubar": r'$\bar{\nu}_\mu$',
+#                "nue": r'$\nu_e$',
+#                "nuebar": r'$\bar{\nu}_e$',
+#                "nutau": r'$\nu_\tau$',
+#                "nutaubar": r'$\bar{\nu}_\tau$'}
 
 matplotlib.rc('font', family = 'FreeSerif', size = 16, weight = 'bold')
-matplotlib.rc('text', usetex = True)
+# matplotlib.rc('text', usetex = True)
 matplotlib.rc('axes', prop_cycle = matplotlib.cycler(color = DUNEcolors))
 
 def plot_chargeHist(q):

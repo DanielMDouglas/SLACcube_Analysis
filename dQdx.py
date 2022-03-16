@@ -57,6 +57,7 @@ def main(infile, outdir = "None", plotfile = "None", verbose = False, plotEvents
         absFig = plt.figure()
         absAx = absFig.gca()
         plt.hist2d(td, dQdx, bins = (tdBins, dQdxBins), cmap = 'Blues')
+        # plt.xlabel(r'$t - t_s$ [$\mathrm{\mu}$s]')
         plt.xlabel(r'$t - t_s$ [$\mathrm{\mu}$s]')
         plt.ylabel(r'$dQ/dx$')
         cb = plt.colorbar()
