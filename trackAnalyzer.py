@@ -104,7 +104,7 @@ class trackAnalyzer:
         xMean = 0.5*(bins[1:] + bins[:-1])
 
         dqdx = counts/dx
-
+        
         # dQdxRatio = dqdx[1:]/dqdx[0]
 
         # print (dqdx)
