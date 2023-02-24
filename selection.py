@@ -9,6 +9,8 @@ from wpca import WPCA
 
 from SLACplots.colors import *
 
+import tqdm
+
 detector_bounds = [[-150, 150], [-150, 150], [0, 300]] # mm (x, y, z)
 
 v_drift = 1.6 # mm/us (very rough estimate)
@@ -75,7 +77,7 @@ class track:
                       firstPos[1] < detector_bounds[1][1] - marginWidth,
                       ]
         # print (conditions)
-        print (firstPos)
+        # print (firstPos)
         return all(conditions)
                 
         
@@ -260,21 +262,28 @@ def draw_labels(ax):
     plt.tight_layout()
 
 def main(args):
-    f = h5py.File('selftrigger_2022_08_05_05_06_01_PDT_evd.h5')
-
-    eventData = f['charge']['events']['data']
-
-    hitData = f['charge']['hits']['data']
-
-    # this is a list of pairs of ints
-    # the first is an event ID, the second is a hit ID
-    eventHitRefs = f['charge']['events']['ref']['charge']['hits']['ref']  
 
     goodTracks = []
-    for i, event in enumerate(eventData):
-        goodTracks += good_tracks_from_event(event, hitData, eventHitRefs, 15)
 
-    print (goodTracks)
+    pbar = tqdm.tqdm(args.infileList)
+    for infileName in pbar:
+        pbar.set_description(infileName.split('/')[-1])
+        f = h5py.File(infileName)
+
+        eventData = f['charge']['events']['data']
+
+        hitData = f['charge']['hits']['data']
+        
+        eventHitRefs = f['charge']['events']['ref']['charge']['hits']['ref']  
+
+        for i, event in enumerate(eventData):
+            goodTracks += good_tracks_from_event(event, hitData, eventHitRefs, 15)
+
+    print ("found", len(goodTracks), "good tracks!")
+    print ("saving track objects to", args.outfile)
+
+    posData = [thisTrack.pos for thisTrack in goodTracks]
+    np.savez_compressed(args.outfile, *posData)
 
 if __name__ == '__main__':
     import argparse
@@ -282,6 +291,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('infileList',
                         nargs = '+',
+                        type = str)
+    parser.add_argument('-o', '--outfile',
                         type = str)
     args = parser.parse_args()
 
