@@ -194,6 +194,7 @@ if __name__ == '__main__':
                         type = str,
                         help = 'h5flow files to parse for margin cut passing tracks')
     parser.add_argument('-o', '--outfile',
+                        required = True,
                         type = str,
                         help = 'HDF5 file to save flattened hit data from good tracks')
     args = parser.parse_args()
