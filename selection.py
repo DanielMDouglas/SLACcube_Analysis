@@ -11,6 +11,13 @@ from SLACplots.colors import *
 
 import tqdm
 
+output_dtype = np.dtype([("trackID", "u4"),
+                         ('q', "f4"),
+                         ('x', "f4"),
+                         ('y', "f4"),
+                         ('z', "f4"),
+                         ])
+
 detector_bounds = [[-150, 150], [-150, 150], [0, 300]] # mm (x, y, z)
 
 v_drift = 1.6 # mm/us (very rough estimate)
@@ -36,6 +43,12 @@ class track:
         q = hits['q']
 
         self.pos = np.array([px, py, z]).T
+
+        self.output_arr = np.empty(len(px), dtype = output_dtype)
+        self.output_arr['q'] = q
+        self.output_arr['x'] = px
+        self.output_arr['y'] = py
+        self.output_arr['z'] = z
 
         self.CoM = np.mean(self.pos, axis = 0)
         # self.axis = axis # do PCA
@@ -282,8 +295,13 @@ def main(args):
     print ("found", len(goodTracks), "good tracks!")
     print ("saving track objects to", args.outfile)
 
-    posData = [thisTrack.pos for thisTrack in goodTracks]
-    np.savez_compressed(args.outfile, *posData)
+    hitArray = np.empty(0, dtype = output_dtype)
+    for i, thisTrack in enumerate(goodTracks):
+        thisTrack.output_arr['trackID'][:] = i
+        hitArray = np.concatenate((hitArray, thisTrack.output_arr))
+
+    with h5py.File(args.outfile, 'w') as of:
+        of['hits'] = hitArray
 
 if __name__ == '__main__':
     import argparse
