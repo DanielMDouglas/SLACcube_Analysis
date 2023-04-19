@@ -2,6 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 from mpl_toolkits import mplot3d
 
 from scipy.optimize import fmin
@@ -106,12 +107,14 @@ def main(args):
         bins = (np.linspace(0, 200, 50),
                 np.logspace(1,3, 50))
         plt.hist2d(driftTime, absoluteCharge,
+                   norm = LogNorm(),
                    bins = bins)
         plt.ylabel(r'Absolute Charge [arb.]')
     else:
         bins = (np.linspace(0, 200, 50),
                 np.logspace(-2, 1, 50))
         plt.hist2d(driftTime, relativeCharge,
+                   norm = LogNorm(),
                    bins = bins)
         plt.ylabel(r'Relative Charge')
 
