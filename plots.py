@@ -1,3 +1,5 @@
+# some plotting utilities
+
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -35,7 +37,7 @@ DUNEcolors = [DUNEblue,
 #                "nutau": r'$\nu_\tau$',
 #                "nutaubar": r'$\bar{\nu}_\tau$'}
 
-matplotlib.rc('font', family = 'FreeSerif', size = 16, weight = 'bold')
+# matplotlib.rc('font', family = 'FreeSerif', size = 16, weight = 'bold')
 # matplotlib.rc('text', usetex = True)
 matplotlib.rc('axes', prop_cycle = matplotlib.cycler(color = DUNEcolors))
 
@@ -48,41 +50,110 @@ def plot_chargeHist(q):
 
     return chargeHistFig
 
-def plot_eventDisplay(event, hits, tracks):
+def draw_hits_in_event_window_by_reference(event):
+    """
+    This is another way of associating hits and events
+    you can use the 'ref' table to make a mask instead of t0
+    """
+    eventID = event['id']
+
+    t0 = event['ts_start']
+
+    eventMask = eventHitRefs[:,0] == eventID
+
+    eventHits = hitData[eventMask]
+
+    tracks = track_finder(eventHits, t0)
+    
+    px = eventHits['px']
+    py = eventHits['py']
+    ts = eventHits['ts']
+
+    z = drift_distance(ts - t0)
+
+    q = eventHits['q']
+
+    X = np.array([px, py, z]).T 
+    clustering = DBSCAN(eps = dbscanEps,
+                        min_samples = 5).fit(X)
+    # print (clustering.labels_)
+    
     fig = plt.figure()
     ax = fig.add_subplot(111, projection = '3d')
 
-    hitRef = event['hit_ref']
-    eventHits = hits[hitRef]
+    ax.scatter(px, py, z,
+               c = clustering.labels_)
+    for thisTrack in tracks:
+        thisTrack.draw(ax)
+        thisTrack.get_first_hit()
+        print (thisTrack.is_z_fixed(10))
+
+    return ax
+
+def draw_boundaries(ax):
+    """
+    Draw the detector boundaries as a wireframe
+    not needed, but pretty
+    """
+    boundKwargs = {'color': 'black',
+                   'ls': '--'}
     
-    t0 = event['ts_start']
-        
-    x = eventHits['px']
-    y = eventHits['py']
-    t = clock_interval*(eventHits['ts'] - t0)
-    
-    q = eventHits['q']
-    
-    ax.scatter(x, y, t, c = q)
+    ax.plot([detector_bounds[0][0], detector_bounds[0][1]],
+            [detector_bounds[1][0], detector_bounds[1][0]],
+            [detector_bounds[2][0], detector_bounds[2][0]],
+            **boundKwargs)
+    ax.plot([detector_bounds[0][0], detector_bounds[0][1]],
+            [detector_bounds[1][1], detector_bounds[1][1]],
+            [detector_bounds[2][0], detector_bounds[2][0]],
+            **boundKwargs)
+    ax.plot([detector_bounds[0][0], detector_bounds[0][1]],
+            [detector_bounds[1][0], detector_bounds[1][0]],
+            [detector_bounds[2][1], detector_bounds[2][1]],
+            **boundKwargs)
+    ax.plot([detector_bounds[0][0], detector_bounds[0][1]],
+            [detector_bounds[1][1], detector_bounds[1][1]],
+            [detector_bounds[2][1], detector_bounds[2][1]],
+            **boundKwargs)
+
+    ax.plot([detector_bounds[0][0], detector_bounds[0][0]],
+            [detector_bounds[1][0], detector_bounds[1][1]],
+            [detector_bounds[2][0], detector_bounds[2][0]],
+            **boundKwargs)
+    ax.plot([detector_bounds[0][1], detector_bounds[0][1]],
+            [detector_bounds[1][0], detector_bounds[1][1]],
+            [detector_bounds[2][0], detector_bounds[2][0]],
+            **boundKwargs)
+    ax.plot([detector_bounds[0][0], detector_bounds[0][0]],
+            [detector_bounds[1][0], detector_bounds[1][1]],
+            [detector_bounds[2][1], detector_bounds[2][1]],
+            **boundKwargs)
+    ax.plot([detector_bounds[0][1], detector_bounds[0][1]],
+            [detector_bounds[1][0], detector_bounds[1][1]],
+            [detector_bounds[2][1], detector_bounds[2][1]],
+            **boundKwargs)
+
+    ax.plot([detector_bounds[0][0], detector_bounds[0][0]],
+            [detector_bounds[1][0], detector_bounds[1][0]],
+            [detector_bounds[2][0], detector_bounds[2][1]],
+            **boundKwargs)
+    ax.plot([detector_bounds[0][0], detector_bounds[0][0]],
+            [detector_bounds[1][1], detector_bounds[1][1]],
+            [detector_bounds[2][0], detector_bounds[2][1]],
+            **boundKwargs)
+    ax.plot([detector_bounds[0][1], detector_bounds[0][1]],
+            [detector_bounds[1][0], detector_bounds[1][0]],
+            [detector_bounds[2][0], detector_bounds[2][1]],
+            **boundKwargs)
+    ax.plot([detector_bounds[0][1], detector_bounds[0][1]],
+            [detector_bounds[1][1], detector_bounds[1][1]],
+            [detector_bounds[2][0], detector_bounds[2][1]],
+            **boundKwargs)
+
+    return ax
+
+def draw_labels(ax):
     ax.set_xlabel(r'x [mm]')
     ax.set_ylabel(r'y [mm]')
-    ax.set_zlabel(r't [$\mu$s]')
+    ax.set_zlabel(r'z (drift) [mm]')
 
-    if event['ntracks']:
-        trackRef = event['track_ref']
-        eventTracks = tracks[trackRef]
-            
-        for track in eventTracks:
-            start4vec = track['start']
-            end4vec = track['end']
-            
-            startPoint = [start4vec[0],
-                          start4vec[1],
-                          clock_interval*start4vec[3]]
-            endPoint = [end4vec[0],
-                        end4vec[1],
-                        clock_interval*end4vec[3]]
-
-            ax.plot(*zip(startPoint[:3], endPoint[:3]),
-                    ls = '--', c = 'r')
-
+    plt.tight_layout()

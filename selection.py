@@ -11,22 +11,14 @@ from SLACplots.colors import *
 
 import tqdm
 
-output_dtype = np.dtype([("trackID", "u4"),
-                         ('q', "f4"),
-                         ('x', "f4"),
-                         ('y', "f4"),
-                         ('z', "f4"),
-                         ])
+from consts import *
 
-detector_bounds = [[-150, 150], [-150, 150], [0, 300]] # mm (x, y, z)
-
-v_drift = 1.6 # mm/us (very rough estimate)
-clock_interval = 0.1 # us/tick -- 10 MHz clock rate
-drift_distance = detector_bounds[2][1] - detector_bounds[2][0] 
-
-drift_window = drift_distance/(v_drift*clock_interval) # maximum drift time
-
-drift_direction = 1 # +/- 1 depending on the direction of the drift in z
+selection_dtype = np.dtype([("trackID", "u4"),
+                            ('q', "f4"),
+                            ('x', "f4"),
+                            ('y', "f4"),
+                            ('z', "f4"),
+                            ])
 
 dbscanEps = 30
 
@@ -44,7 +36,7 @@ class track:
 
         self.pos = np.array([px, py, z]).T
 
-        self.output_arr = np.empty(len(px), dtype = output_dtype)
+        self.output_arr = np.empty(len(px), dtype = selection_dtype)
         self.output_arr['q'] = q
         self.output_arr['x'] = px
         self.output_arr['y'] = py
@@ -91,9 +83,7 @@ class track:
                       ]
         # print (conditions)
         # print (firstPos)
-        return all(conditions)
-                
-        
+        return all(conditions)        
 
 def track_finder(hits, t0):
     px = hits['px']
@@ -166,114 +156,6 @@ def good_tracks_from_event(event, hitData, eventHitRefs, margin):
 
     return goodTracks
     
-def draw_hits_in_event_window_by_reference(event):
-    """
-    This is another way of associating hits and events
-    you can use the 'ref' table to make a mask instead of t0
-    """
-    eventID = event['id']
-
-    t0 = event['ts_start']
-
-    eventMask = eventHitRefs[:,0] == eventID
-
-    eventHits = hitData[eventMask]
-
-    tracks = track_finder(eventHits, t0)
-    
-    px = eventHits['px']
-    py = eventHits['py']
-    ts = eventHits['ts']
-
-    z = drift_distance(ts - t0)
-
-    q = eventHits['q']
-
-    X = np.array([px, py, z]).T 
-    clustering = DBSCAN(eps = dbscanEps,
-                        min_samples = 5).fit(X)
-    # print (clustering.labels_)
-    
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection = '3d')
-
-    ax.scatter(px, py, z,
-               c = clustering.labels_)
-    for thisTrack in tracks:
-        thisTrack.draw(ax)
-        thisTrack.get_first_hit()
-        print (thisTrack.is_z_fixed(10))
-
-    return ax
-
-def draw_boundaries(ax):
-    """
-    Draw the detector boundaries as a wireframe
-    not needed, but pretty
-    """
-    boundKwargs = {'color': 'black',
-                   'ls': '--'}
-    
-    ax.plot([detector_bounds[0][0], detector_bounds[0][1]],
-            [detector_bounds[1][0], detector_bounds[1][0]],
-            [detector_bounds[2][0], detector_bounds[2][0]],
-            **boundKwargs)
-    ax.plot([detector_bounds[0][0], detector_bounds[0][1]],
-            [detector_bounds[1][1], detector_bounds[1][1]],
-            [detector_bounds[2][0], detector_bounds[2][0]],
-            **boundKwargs)
-    ax.plot([detector_bounds[0][0], detector_bounds[0][1]],
-            [detector_bounds[1][0], detector_bounds[1][0]],
-            [detector_bounds[2][1], detector_bounds[2][1]],
-            **boundKwargs)
-    ax.plot([detector_bounds[0][0], detector_bounds[0][1]],
-            [detector_bounds[1][1], detector_bounds[1][1]],
-            [detector_bounds[2][1], detector_bounds[2][1]],
-            **boundKwargs)
-
-    ax.plot([detector_bounds[0][0], detector_bounds[0][0]],
-            [detector_bounds[1][0], detector_bounds[1][1]],
-            [detector_bounds[2][0], detector_bounds[2][0]],
-            **boundKwargs)
-    ax.plot([detector_bounds[0][1], detector_bounds[0][1]],
-            [detector_bounds[1][0], detector_bounds[1][1]],
-            [detector_bounds[2][0], detector_bounds[2][0]],
-            **boundKwargs)
-    ax.plot([detector_bounds[0][0], detector_bounds[0][0]],
-            [detector_bounds[1][0], detector_bounds[1][1]],
-            [detector_bounds[2][1], detector_bounds[2][1]],
-            **boundKwargs)
-    ax.plot([detector_bounds[0][1], detector_bounds[0][1]],
-            [detector_bounds[1][0], detector_bounds[1][1]],
-            [detector_bounds[2][1], detector_bounds[2][1]],
-            **boundKwargs)
-
-    ax.plot([detector_bounds[0][0], detector_bounds[0][0]],
-            [detector_bounds[1][0], detector_bounds[1][0]],
-            [detector_bounds[2][0], detector_bounds[2][1]],
-            **boundKwargs)
-    ax.plot([detector_bounds[0][0], detector_bounds[0][0]],
-            [detector_bounds[1][1], detector_bounds[1][1]],
-            [detector_bounds[2][0], detector_bounds[2][1]],
-            **boundKwargs)
-    ax.plot([detector_bounds[0][1], detector_bounds[0][1]],
-            [detector_bounds[1][0], detector_bounds[1][0]],
-            [detector_bounds[2][0], detector_bounds[2][1]],
-            **boundKwargs)
-    ax.plot([detector_bounds[0][1], detector_bounds[0][1]],
-            [detector_bounds[1][1], detector_bounds[1][1]],
-            [detector_bounds[2][0], detector_bounds[2][1]],
-            **boundKwargs)
-
-    return ax
-
-def draw_labels(ax):
-    ax.set_xlabel(r'x [mm]')
-    ax.set_ylabel(r'y [mm]')
-    ax.set_zlabel(r'z (drift) [mm]')
-
-    plt.tight_layout()
-
 def main(args):
 
     goodTracks = []
@@ -295,7 +177,7 @@ def main(args):
     print ("found", len(goodTracks), "good tracks!")
     print ("saving track objects to", args.outfile)
 
-    hitArray = np.empty(0, dtype = output_dtype)
+    hitArray = np.empty(0, dtype = selection_dtype)
     for i, thisTrack in enumerate(goodTracks):
         thisTrack.output_arr['trackID'][:] = i
         hitArray = np.concatenate((hitArray, thisTrack.output_arr))
@@ -309,40 +191,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('infileList',
                         nargs = '+',
-                        type = str)
+                        type = str,
+                        help = 'h5flow files to parse for margin cut passing tracks')
     parser.add_argument('-o', '--outfile',
-                        type = str)
+                        type = str,
+                        help = 'HDF5 file to save flattened hit data from good tracks')
     args = parser.parse_args()
 
     main(args)
-
-    
-# marginSpace = np.linspace(0, 100, 101)
-# passEff = []
-# for margin in marginSpace:
-#     goodTracks = 0
-#     totalTracks = 0
-    
-#     for i, event in enumerate(eventData):
-#         evGoodTracks, evTotalTracks = trackCut_stats_from_event(event, margin)
-
-#         goodTracks += evGoodTracks
-#         totalTracks += evTotalTracks
-
-#     print (goodTracks, totalTracks, float(goodTracks/totalTracks))
-
-#     passEff.append(float(goodTracks/totalTracks))
-
-# plt.plot(marginSpace, passEff)
-# plt.xlabel(r'Anode Veto Margin [mm]')
-# plt.ylabel(r'Cut Efficiency')
-# # plt.semilogy()
-# plt.tight_layout()
-# plt.show()
-
-# for i, event in enumerate(eventData):
-#     ax = draw_hits_in_event_window_by_reference(event)
-#     draw_boundaries(ax)
-#     draw_labels(ax)
-
-#     plt.show()

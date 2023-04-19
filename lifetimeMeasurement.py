@@ -152,9 +152,9 @@ if __name__ == '__main__':
                         type = str,
                         help = 'flattened hit data from selection.py')
     parser.add_argument('--plotfile', '-p',
-                        default = 'None',
+                        default = "",
                         type = str,
-                        help = 'optional file to which resulting dQ/dx measurement is saved')
+                        help = 'optional file to which resulting lifetime measurement is saved')
     parser.add_argument('--use_absolute', '-a',
                         action = 'store_true',
                         help = 'flag to force the use of absolute charge (default: relative charge)')
