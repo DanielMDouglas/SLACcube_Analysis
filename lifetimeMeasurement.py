@@ -29,7 +29,7 @@ class model:
         """
         Do a simple RMS residual minimization given an observation tuple (dep., indep.).
         """
-        def RMS(params, x, y, thisModel):
+        def RMS(params, x, y):
             residual = [yi - self(xi, params)
                         for xi, yi in zip(x, y)]
             sqResid = [pow(r, 2) for r in residual]
@@ -38,7 +38,7 @@ class model:
         
         result = fmin(RMS,
                       self.init_params,
-                      args = (obs[0], obs[1], self))
+                      args = (obs[0], obs[1]))
         self.params = result
     def __call__(self, x, params):
         """
