@@ -37,8 +37,6 @@ def pareTrack(trackHits, trackRadialTol = 3):
     radPos = np.linalg.norm(np.cross(pos-CoM,
                                      axis), axis = -1)
 
-    # print ("radial position", radPos)
-    
     if max(radPos) > trackRadialTol:
         # print ("reducing the track by one hit!")
         # remove the most extreme point from the track
@@ -78,23 +76,29 @@ def main(args):
                    c = "green")
 
         pos, CoM, axis = pareTrack(nearHits, trackRadialTol = 3)
-        axisPos = np.dot(pos-CoM,
-                         axis)
-        radPos = np.linalg.norm(np.cross(pos-CoM,
-                                         axis), axis = -1)
+
+        farPos = np.array([farHits['x'],
+                           farHits['y'],
+                           farHits['z'],
+                           ]).T
+        farRelPos = farPos - CoM
+        farAxDist = np.dot(farRelPos, axis)
+        farAxPos = CoM + np.outer(farAxDist, axis)
+        farRadDisp = farRelPos - farAxPos
+
+        for fAP, fP in zip(farAxPos, farPos):
+            plt.plot(*np.array([fAP, fP]).T,
+                     color = 'red')
 
         ax.scatter(*pos.T,
-                   # c = radPos,
                    c = 'blue',
                    )
 
         length = 300.
 
         plt.plot(*np.array([CoM - axis*length/2, 
-                            CoM + axis*length/2]).T)
-                 
-        print (axisPos)
-        print (radPos)
+                            CoM + axis*length/2]).T,
+                 color = 'black')
 
     plt.show()
 

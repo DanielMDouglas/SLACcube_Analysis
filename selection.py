@@ -7,8 +7,6 @@ import h5py
 from sklearn.cluster import DBSCAN
 from wpca import WPCA
 
-from SLACplots.colors import *
-
 import tqdm
 
 from consts import *
