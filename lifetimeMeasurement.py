@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from mpl_toolkits import mplot3d
 
-from scipy.optimize import fmin
+#from scipy.optimize import fmin
+from scipy.optimize import curve_fit
 
 import h5py
 import os
@@ -25,21 +26,24 @@ class model:
         """
         self.init_params = init_guess
         self.params = init_guess
+        self.param_errs = np.zeros_like(init_guess)
     def fit(self, obs):
         """
         Do a simple RMS residual minimization given an observation tuple (dep., indep.).
         """
-        def RMS(params, x, y):
-            residual = [yi - self(xi, params)
-                        for xi, yi in zip(x, y)]
-            sqResid = [pow(r, 2) for r in residual]
-            RMSResid = pow(sum(sqResid), 0.5)
-            return RMSResid
+    #    def RMS(params, x, y):
+    #        residual = [yi - self(xi, params)
+    #                    for xi, yi in zip(x, y)]
+    #        sqResid = [pow(r, 2) for r in residual]
+    #        RMSResid = pow(sum(sqResid), 0.5)
+    #        return RMSResid
         
-        result = fmin(RMS,
-                      self.init_params,
-                      args = (obs[0], obs[1]))
+    #    result = fmin(RMS,
+    #                  self.init_params,
+    #                  args = (obs[0], obs[1]))
+        result, pcov = curve_fit(self, obs[0], obs[1], p0=self.init_params)
         self.params = result
+        self.param_errs = np.sqrt(np.diag(pcov))
     def __call__(self, x, params):
         """
         Model function.  Must implement for each model!
@@ -49,10 +53,16 @@ class model:
         """
         Call the function with the best-fit parameters
         """
-        return self(x, self.params)
+      #  return self(x, self.params)
+        return 0
     def string(self):
         """
         Just a nice string with the functional form and current bf parameters
+        """
+        return r'$x$'
+    def string_errs(self):
+        """
+        Just a nice string with the parameter errors
         """
         return r'$x$'
 
@@ -61,20 +71,30 @@ class expModel (model):
     Exponential model assuming f(0) = 1
     """
     def __call__(self, x, params):
-        T, = params
+        #T, = params
+        T = params
         return np.exp(-x/T)
+    def bf(self, x):
+        return self(x, self.params)
     def string(self):
         return r'$\exp(-t_D/' + str(round(self.params[0], 3)) + r')$' 
+    def string_errs(self):
+        return r'$\tau = ' + str(round(self.params[0], 3)) + r'\pm' + str(round(self.param_errs[0], 3)) +r'$'
 
 class expModelWithNorm (model):
     """
     Exponential model including a normalization term
     """
-    def __call__(self, x, params):
-        A, T = params
+   # def __call__(self, x, params):
+   #     A, T = params
+    def __call__(self, x, A, T):
         return A*np.exp(-x/T)
+    def bf(self, x):
+        return self(x, self.params[0], self.params[1])
     def string(self):
         return r'$' + str(round(self.params[0], 3))+ r' \exp(-t_D/' + str(round(self.params[1], 3)) + r')$' 
+    def string_errs(self):
+        return r'$\tau = ' + str(round(self.params[1], 3)) + r'\pm' + str(round(self.param_errs[1], 3)) +r'$'
 
 def main(args):
     # collected all passed input files into an array
@@ -107,14 +127,14 @@ def main(args):
         bins = (np.linspace(0, 200, 50),
                 np.logspace(1,3, 50))
         plt.hist2d(driftTime, absoluteCharge,
-                   norm = LogNorm(),
+                   #norm = LogNorm(),
                    bins = bins)
         plt.ylabel(r'Absolute Charge [arb.]')
     else:
         bins = (np.linspace(0, 200, 50),
                 np.logspace(-2, 1, 50))
         plt.hist2d(driftTime, relativeCharge,
-                   norm = LogNorm(),
+                   #norm = LogNorm(),
                    bins = bins)
         plt.ylabel(r'Relative Charge')
 
@@ -133,11 +153,15 @@ def main(args):
 
     plt.plot(fineTimeSpace, finePredSpace, ls = '--', color = 'red')
     plt.text(bins[0][0] + 5,
-             bins[1][0] + 5,
+             bins[1][-1] /2.,
              thisModel.string(), color = 'red')
+    plt.text(bins[0][0] + 10,
+             bins[1][-1] /2.5,
+             thisModel.string_errs(), color = 'red')
     
     plt.semilogy()
     plt.xlabel(r'Drift Time [$\mu$s]')
+    plt.colorbar()
 
     plt.tight_layout()
 

@@ -7,7 +7,7 @@ import h5py
 from sklearn.cluster import DBSCAN
 from wpca import WPCA
 
-from SLACplots.colors import *
+#from SLACplots.colors import *
 
 import tqdm
 
@@ -107,6 +107,7 @@ def track_finder(hits, t0):
 
     return foundTracks
 
+#TODO
     # make tracks
 
     # for all of the found tracks, see if they are colinear
