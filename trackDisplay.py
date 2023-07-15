@@ -12,6 +12,8 @@ def main(args):
         hits = f['hits'][:]
 
     trackHits = hits[hits['trackID'] == args.trackID]
+    if( len(trackHits) == 0 ):
+        return -1
         
     fig = plt.figure()
     ax = fig.add_subplot(111, projection = '3d')
@@ -26,13 +28,19 @@ def main(args):
     ax.set_xlabel(r'x [mm]')
     ax.set_ylabel(r'y [mm]')
     ax.set_zlabel(r'z [mm]')
+    ax.view_init(elev=5)
     
     plt.tight_layout()
 
     if args.plotfile:
         plt.savefig(args.plotfile)
     else:
-        plt.show()
+        if __name__ == '__main__':
+            plt.show()
+        else:
+            plt.show(block=False)
+
+    return 0
         
 if __name__ == '__main__':
     import argparse
