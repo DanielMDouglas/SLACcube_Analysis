@@ -19,6 +19,12 @@ selection_dtype = np.dtype([("trackID", "u4"),
                             ('y', "f4"),
                             ('z', "f4"),
                             ])
+track_dtype = np.dtype([("trackID", "u4"),
+                        ("totalCharge", "f4"),
+                        ("colinear", "f4"),
+                        ("length", "f4"),
+                        ("cosPolar", "f4")
+                        ])
 
 dbscanEps = 30
 
@@ -53,6 +59,10 @@ class track:
         self.axisPos = np.dot(self.pos-self.CoM,
                               self.axis)
         self.length = np.max(self.axisPos) - np.min(self.axisPos)
+        self.colinear = pca.explained_variance_[1] / pca.explained_variance_[0]
+        z_axis = np.array([0, 0, 1])
+        self.cosPolar = np.dot(self.axis, z_axis)
+        self.totalCharge = np.sum(q)
         
     def draw(self, axes):
         # print (self.CoM, self.axis)
@@ -83,7 +93,12 @@ class track:
                       ]
         # print (conditions)
         # print (firstPos)
-        return all(conditions)        
+        return all(conditions)
+
+    def is_good_track(self):
+        is_colinear = self.colinear < 0.02 #temporary
+        is_long = self.length > 50 #temporary
+        return is_colinear and is_long
 
 def track_finder(hits, t0):
     px = hits['px']
@@ -179,12 +194,22 @@ def main(args):
     print ("saving track objects to", args.outfile)
 
     hitArray = np.empty(0, dtype = selection_dtype)
+    trackArray = np.empty(0, dtype = track_dtype)
     for i, thisTrack in enumerate(goodTracks):
         thisTrack.output_arr['trackID'][:] = i
         hitArray = np.concatenate((hitArray, thisTrack.output_arr))
+        trackInfo = np.array((i, thisTrack.totalCharge, thisTrack.colinear, thisTrack.length, thisTrack.cosPolar), dtype=track_dtype)
+        trackArray = np.append(trackArray, trackInfo)
+
+    fig, axes = plt.subplots(nrows=2, ncols=2)
+    axes[0,0].hist(trackArray["colinear"], bins=100)
+    axes[0,1].hist2d(trackArray["colinear"], trackArray["length"], cmap=plt.cm.Blues)
+    axes[1,0].hist(trackArray["cosPolar"], bins=100)
+    plt.show()
 
     with h5py.File(args.outfile, 'w') as of:
         of['hits'] = hitArray
+        of['track'] = trackArray
 
 if __name__ == '__main__':
     import argparse
