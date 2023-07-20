@@ -1,6 +1,7 @@
 import numpy as np
 
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 
 import h5py
 
@@ -201,10 +202,20 @@ def main(args):
         trackInfo = np.array((i, thisTrack.totalCharge, thisTrack.colinear, thisTrack.length, thisTrack.cosPolar), dtype=track_dtype)
         trackArray = np.append(trackArray, trackInfo)
 
-    fig, axes = plt.subplots(nrows=2, ncols=2)
+    fig, axes = plt.subplots(nrows=3, ncols=3)
     axes[0,0].hist(trackArray["colinear"], bins=100)
-    axes[0,1].hist2d(trackArray["colinear"], trackArray["length"], cmap=plt.cm.Blues)
-    axes[1,0].hist(trackArray["cosPolar"], bins=100)
+    axes[0,0].set_xlabel("colinear")
+    axes[0,0].semilogy()
+    axes[1,1].hist(trackArray["length"], bins=100)
+    axes[1,1].set_xlabel("length")
+    axes[2,2].hist(trackArray["cosPolar"], bins=100)
+    axes[2,2].set_xlabel("cosPolar")
+    axes[0,1].hist2d(trackArray["length"], trackArray["colinear"], cmap=plt.cm.Blues, bins=[20,50], norm = LogNorm())
+    axes[0,2].hist2d(trackArray["cosPolar"], trackArray["colinear"], cmap=plt.cm.Blues, bins=[20,50], norm = LogNorm())
+    axes[1,2].hist2d(trackArray["cosPolar"], trackArray["length"], cmap=plt.cm.Blues, bins=20)
+    axes[1,0].axis("off")
+    axes[2,0].axis("off")
+    axes[2,1].axis("off")
     plt.show()
 
     with h5py.File(args.outfile, 'w') as of:

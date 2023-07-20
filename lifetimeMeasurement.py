@@ -15,6 +15,7 @@ from utils import *
 from plots import *
 
 from selection import selection_dtype
+from selection import track_dtype
 
 class model:
     """
@@ -99,9 +100,11 @@ class expModelWithNorm (model):
 def main(args):
     # collected all passed input files into an array
     hitData = np.empty(shape = (0), dtype = selection_dtype)
+    trackData = np.empty(shape = (0), dtype = track_dtype)
     for infile in args.infileList:
         with h5py.File(infile, 'r') as f:
             hitData = np.concatenate([hitData, f['hits']])
+            trackData = np.concatenate([trackData, f['track']])
 
     driftTime = []
     absoluteCharge = []
@@ -110,32 +113,41 @@ def main(args):
     # for each track, get the initial hit and the subsequent hits
     # dQ/dz is measured from the subsequent hits using either
     # absolute or relative (to the initial hit) charge
-    trackIDs = np.unique(hitData['trackID'])
+    #trackIDs = np.unique(hitData['trackID'])
+    goodTracks = trackData[(trackData["colinear"]<0.02) & (trackData["length"]>150)]
+    trackIDs = goodTracks["trackID"]
+    print("use", len(trackIDs), "good tracks")
+
     for thisTrackID in trackIDs:
         trackHits = hitData[hitData['trackID'] == thisTrackID]
 
         firstHit = trackHits[trackHits['z'] == 0][0]
         laterHits = trackHits[trackHits['z'] != 0]
 
+        cosPolar = trackData[trackData["trackID"] == thisTrackID]["cosPolar"][0]
+        sinPolar = np.sqrt(1-cosPolar*cosPolar)
+
         for thisHit in laterHits:
             
             driftTime.append(thisHit['z']/v_drift)
             relativeCharge.append(thisHit['q']/firstHit['q'])
-            absoluteCharge.append(thisHit['q'])
+            absoluteCharge.append(thisHit['q']*sinPolar)
 
     if args.use_absolute:
         bins = (np.linspace(0, 200, 50),
                 np.logspace(1,3, 50))
         plt.hist2d(driftTime, absoluteCharge,
                    #norm = LogNorm(),
-                   bins = bins)
+                   bins = bins,
+                   cmap = plt.cm.Blues)
         plt.ylabel(r'Absolute Charge [arb.]')
     else:
         bins = (np.linspace(0, 200, 50),
                 np.logspace(-2, 1, 50))
         plt.hist2d(driftTime, relativeCharge,
                    #norm = LogNorm(),
-                   bins = bins)
+                   bins = bins,
+                   cmap = plt.cm.Blues)
         plt.ylabel(r'Relative Charge')
 
     # fit the observation to a decay model
