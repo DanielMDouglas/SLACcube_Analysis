@@ -12,6 +12,9 @@ if __name__ == '__main__':
                         type = int,
                         default = 0,
                         help = 'trackID to plot')
+    parser.add_argument('-v', '--verbose',
+                        action='store_true',
+                        help = 'print track information')
     parser.add_argument('--plotfile', '-p',
                         default = "",
                         type = str,

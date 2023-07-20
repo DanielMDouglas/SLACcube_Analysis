@@ -10,6 +10,8 @@ from plots import *
 def main(args):
     with h5py.File(args.infile, 'r') as f:
         hits = f['hits'][:]
+        if args.verbose:
+            tracks = f['track'][:]
 
     trackHits = hits[hits['trackID'] == args.trackID]
     if( len(trackHits) == 0 ):
@@ -32,6 +34,13 @@ def main(args):
     
     plt.tight_layout()
 
+    if args.verbose:
+        thisTrack = tracks[tracks["trackID"] == args.trackID]
+        print("trackID:", thisTrack["trackID"][0],
+            ", colinear", round(thisTrack["colinear"][0],4),
+            ", length", round(thisTrack["length"][0],1),
+            ", cosPolar", round(thisTrack["cosPolar"][0],3))
+
     if args.plotfile:
         plt.savefig(args.plotfile)
     else:
@@ -53,6 +62,9 @@ if __name__ == '__main__':
                         type = int,
                         default = 0,
                         help = 'trackID to plot')
+    parser.add_argument('-v', '--verbose',
+                        action='store_true',
+                        help = 'print track information')
     parser.add_argument('--plotfile', '-p',
                         default = "",
                         type = str,
