@@ -24,10 +24,12 @@ track_dtype = np.dtype([("trackID", "u4"),
                         ("totalCharge", "f4"),
                         ("colinear", "f4"),
                         ("length", "f4"),
-                        ("cosPolar", "f4")
+                        ("cosPolar", "f4"),
+                        ("passCathode", "?")
                         ])
 
 dbscanEps = 30
+margin = 15
 
 class track:
     def __init__(self, hits, t0):
@@ -64,6 +66,11 @@ class track:
         z_axis = np.array([0, 0, 1])
         self.cosPolar = np.dot(self.axis, z_axis)
         self.totalCharge = np.sum(q)
+
+        self.passCathode = all( (px > detector_bounds[0][0] + margin) &
+                                (px < detector_bounds[0][1] - margin) &
+                                (py > detector_bounds[1][0] + margin) &
+                                (py < detector_bounds[1][1] - margin) )
         
     def draw(self, axes):
         # print (self.CoM, self.axis)
@@ -99,7 +106,7 @@ class track:
     def is_good_track(self):
         is_colinear = self.colinear < 0.02 #temporary
         is_long = self.length > 50 #temporary
-        return is_colinear and is_long
+        return is_colinear and is_long and self.passCathode
 
 def track_finder(hits, t0):
     px = hits['px']
@@ -189,7 +196,7 @@ def main(args):
         eventHitRefs = f['charge']['events']['ref']['charge']['hits']['ref']  
 
         for i, event in enumerate(eventData):
-            goodTracks += good_tracks_from_event(event, hitData, eventHitRefs, 15)
+            goodTracks += good_tracks_from_event(event, hitData, eventHitRefs, margin)
 
     print ("found", len(goodTracks), "good tracks!")
     print ("saving track objects to", args.outfile)
@@ -199,7 +206,12 @@ def main(args):
     for i, thisTrack in enumerate(goodTracks):
         thisTrack.output_arr['trackID'][:] = i
         hitArray = np.concatenate((hitArray, thisTrack.output_arr))
-        trackInfo = np.array((i, thisTrack.totalCharge, thisTrack.colinear, thisTrack.length, thisTrack.cosPolar), dtype=track_dtype)
+        trackInfo = np.array((i, thisTrack.totalCharge,
+                                 thisTrack.colinear, 
+                                 thisTrack.length, 
+                                 thisTrack.cosPolar, 
+                                 thisTrack.passCathode),
+                             dtype=track_dtype)
         trackArray = np.append(trackArray, trackInfo)
 
     fig, axes = plt.subplots(nrows=3, ncols=3)
