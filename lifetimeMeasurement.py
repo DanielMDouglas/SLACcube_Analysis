@@ -114,7 +114,11 @@ def main(args):
     # dQ/dz is measured from the subsequent hits using either
     # absolute or relative (to the initial hit) charge
     #trackIDs = np.unique(hitData['trackID'])
-    goodTracks = trackData[(trackData["colinear"]<0.02) & (trackData["length"]>150)]
+    goodTracks = trackData[#(trackData["colinear"]<0.02) &
+                           #(trackData["length"]>50) &
+                           #(np.abs(trackData["cosPolar"])>0.5) &
+                           (np.abs(trackData["cosPolar"]) * trackData["length"] > 100) ]
+
     trackIDs = goodTracks["trackID"]
     print("use", len(trackIDs), "good tracks")
 

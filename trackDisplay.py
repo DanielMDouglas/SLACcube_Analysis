@@ -2,6 +2,8 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 
 import h5py
 
@@ -48,6 +50,7 @@ def main(args):
         if __name__ == '__main__':
             plt.show()
         else:
+            plt.get_current_fig_manager().window.wm_geometry("+20+60")
             plt.show(block=False)
 
     return 0

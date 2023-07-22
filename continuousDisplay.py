@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import trackDisplay
+import oneTrackPlot
 
 if __name__ == '__main__':
     import argparse
@@ -20,8 +21,10 @@ if __name__ == '__main__':
                         type = str,
                         help = 'optional file to which resulting track display is saved')
     args = parser.parse_args()
+    args.use_absolute = True
 
     while True:
+        oneTrackPlot.main(args)
         status = trackDisplay.main(args)
         if( status != 0 ):
             break

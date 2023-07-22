@@ -175,7 +175,7 @@ def good_tracks_from_event(event, hitData, eventHitRefs, margin):
 
     goodTracks = []
     for thisTrack in tracks:
-        if thisTrack.is_z_fixed(margin):
+        if thisTrack.is_z_fixed(margin) and thisTrack.is_good_track():
             goodTracks.append(thisTrack)
 
     return goodTracks
