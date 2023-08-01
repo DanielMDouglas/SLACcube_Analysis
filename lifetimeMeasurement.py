@@ -97,18 +97,18 @@ class expModelWithNorm (model):
     def string_errs(self):
         return r'$\tau = ' + str(round(self.params[1], 3)) + r'\pm' + str(round(self.param_errs[1], 3)) +r'$'
 
-def main(args):
+
+driftTime = []
+charge = []
+
+def read_and_plot(infileList, use_absolute, correct_sin):
     # collected all passed input files into an array
     hitData = np.empty(shape = (0), dtype = selection_dtype)
     trackData = np.empty(shape = (0), dtype = track_dtype)
-    for infile in args.infileList:
+    for infile in infileList:
         with h5py.File(infile, 'r') as f:
             hitData = np.concatenate([hitData, f['hits']])
             trackData = np.concatenate([trackData, f['track']])
-
-    driftTime = []
-    absoluteCharge = []
-    relativeCharge = []
 
     # for each track, get the initial hit and the subsequent hits
     # dQ/dz is measured from the subsequent hits using either
@@ -122,64 +122,89 @@ def main(args):
     trackIDs = goodTracks["trackID"]
     print("use", len(trackIDs), "good tracks")
 
+    t_lower = 0
+    t_upper = 250
+    t_nbin = 50
+    t_binWidth = (t_upper - t_lower) / t_nbin
+    # Drift time bin: [t_lower, t_upper] evenly divided into t_nbin
+    # Sum up charges at same t
+    # Each component is total charge at t in that bin
     for thisTrackID in trackIDs:
         trackHits = hitData[hitData['trackID'] == thisTrackID]
-
-        firstHit = trackHits[trackHits['z'] == 0][0]
-        laterHits = trackHits[trackHits['z'] != 0]
 
         cosPolar = trackData[trackData["trackID"] == thisTrackID]["cosPolar"][0]
         sinPolar = np.sqrt(1-cosPolar*cosPolar)
 
-        for thisHit in laterHits:
-            
-            driftTime.append(thisHit['z']/v_drift)
-            relativeCharge.append(thisHit['q']/firstHit['q'])
-            absoluteCharge.append(thisHit['q']*sinPolar)
+        summedCharges = np.zeros(t_nbin)
+        for thisHit in trackHits:
+            t = thisHit['z']/v_drift
+            t_ibin = int(np.floor(t/t_binWidth))
+            summedCharges[t_ibin] += thisHit['q']
 
-    if args.use_absolute:
-        bins = (np.linspace(0, 200, 50),
+        if use_absolute and correct_sin:
+            summedCharges *= sinPolar
+
+        if not use_absolute:
+            norm = summedCharges[0]
+            if norm == 0:
+                continue
+            summedCharges /= norm
+
+        for ibin in range(t_nbin):
+            if summedCharges[ibin] > 0:
+                medianT = t_lower + t_binWidth * (ibin + 0.5)
+                driftTime.append(medianT)
+                charge.append(summedCharges[ibin])
+
+
+
+    if use_absolute:
+        bins = (np.linspace(t_lower, t_upper, t_nbin),
                 np.logspace(1,3, 50))
-        plt.hist2d(driftTime, absoluteCharge,
+        plt.hist2d(driftTime, charge,
                    #norm = LogNorm(),
                    bins = bins,
                    cmap = plt.cm.Blues)
         plt.ylabel(r'Absolute Charge [arb.]')
     else:
-        bins = (np.linspace(0, 200, 50),
+        bins = (np.linspace(t_lower + t_binWidth, t_upper, t_nbin - 1),
                 np.logspace(-2, 1, 50))
-        plt.hist2d(driftTime, relativeCharge,
+        plt.hist2d(driftTime, charge,
                    #norm = LogNorm(),
                    bins = bins,
                    cmap = plt.cm.Blues)
         plt.ylabel(r'Relative Charge')
 
-    # fit the observation to a decay model
+    plt.semilogy()
+    plt.xlabel(r'Drift Time [$\mu$s]')
+    plt.colorbar()
+    plt.tight_layout()
 
+
+def main(args):
+    read_and_plot(args.infileList, args.use_absolute, args.correct_sin)
+
+    # fit the observation to a decay model
     if args.use_absolute:
         thisModel = expModelWithNorm((100, 100))
-        thisModel.fit((driftTime, absoluteCharge))
+        thisModel.fit((driftTime, charge))
     else:
         thisModel = expModel((100,))
-        thisModel.fit((driftTime, relativeCharge))
+        thisModel.fit((driftTime, charge))
 
     # plot the best fit
     fineTimeSpace = np.linspace(0, 200, 1000)
     finePredSpace = [thisModel.bf(xi) for xi in fineTimeSpace]
 
     plt.plot(fineTimeSpace, finePredSpace, ls = '--', color = 'red')
-    plt.text(bins[0][0] + 5,
-             bins[1][-1] /2.,
+    if args.use_absolute:
+        text_pos = (10,20)
+    else:
+        text_pos = (10,5)
+    plt.text(text_pos[0], text_pos[1],
              thisModel.string(), color = 'red')
-    plt.text(bins[0][0] + 10,
-             bins[1][-1] /2.5,
+    plt.text(text_pos[0], text_pos[1]/1.3,
              thisModel.string_errs(), color = 'red')
-    
-    plt.semilogy()
-    plt.xlabel(r'Drift Time [$\mu$s]')
-    plt.colorbar()
-
-    plt.tight_layout()
 
     if args.plotfile:
         plt.savefig(args.plotfile)
@@ -201,6 +226,10 @@ if __name__ == '__main__':
     parser.add_argument('--use_absolute', '-a',
                         action = 'store_true',
                         help = 'flag to force the use of absolute charge (default: relative charge)')
+    parser.add_argument('--correct_sin', '-s',
+                        action = 'store_true',
+                        help = 'flag to force charge correction by sin(PolarAngle)\
+                                for each track (default: no correction)')
     args = parser.parse_args()
 
     main(args)

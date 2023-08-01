@@ -104,9 +104,10 @@ class track:
         return all(conditions)
 
     def is_good_track(self):
-        is_colinear = self.colinear < 0.02 #temporary
-        is_long = self.length > 50 #temporary
-        return is_colinear and is_long and self.passCathode
+        #is_colinear = self.colinear < 0.02 #temporary
+        #is_long = self.length > 50 #temporary
+        is_zlong = self.length * np.abs(self.cosPolar) > 100
+        return is_zlong
 
 def track_finder(hits, t0):
     px = hits['px']
@@ -130,11 +131,6 @@ def track_finder(hits, t0):
 
     return foundTracks
 
-#TODO
-    # make tracks
-
-    # for all of the found tracks, see if they are colinear
-    # if they are, join them
     
 def drift_distance(dt):
     """
