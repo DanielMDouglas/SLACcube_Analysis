@@ -159,15 +159,18 @@ def read_and_plot(infileList, use_absolute, correct_sin):
 
 
     if use_absolute:
-        bins = (np.linspace(t_lower, t_upper, t_nbin),
+        bins = (np.linspace(t_lower, t_upper, t_nbin+1),
                 np.logspace(1,3, 50))
         plt.hist2d(driftTime, charge,
                    #norm = LogNorm(),
                    bins = bins,
                    cmap = plt.cm.Blues)
-        plt.ylabel(r'Absolute Charge [arb.]')
+        if correct_sin:
+            plt.ylabel(r'sin-corrected absolute Charge [arb.]')
+        else:
+            plt.ylabel(r'Absolute Charge [arb.]')
     else:
-        bins = (np.linspace(t_lower + t_binWidth, t_upper, t_nbin - 1),
+        bins = (np.linspace(t_lower + t_binWidth, t_upper, t_nbin),
                 np.logspace(-2, 1, 50))
         plt.hist2d(driftTime, charge,
                    #norm = LogNorm(),
@@ -226,7 +229,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_absolute', '-a',
                         action = 'store_true',
                         help = 'flag to force the use of absolute charge (default: relative charge)')
-    parser.add_argument('--correct_sin', '-s',
+    parser.add_argument('--correct_sin', '-c',
                         action = 'store_true',
                         help = 'flag to force charge correction by sin(PolarAngle)\
                                 for each track (default: no correction)')

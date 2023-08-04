@@ -52,7 +52,7 @@ def main(args):
 
 
     if args.use_absolute:
-        bins = (np.linspace(t_lower, t_upper, t_nbin),
+        bins = (np.linspace(t_lower, t_upper, t_nbin+1),
                 np.logspace(1,3, 50))
         plt.hist2d(driftTime, charge,
                    #norm = LogNorm(),
@@ -60,7 +60,7 @@ def main(args):
                    cmap = plt.cm.Blues)
         plt.ylabel(r'Absolute Charge [arb.]')
     else:
-        bins = (np.linspace(t_lower, t_upper, t_nbin),
+        bins = (np.linspace(t_lower, t_upper, t_nbin+1),
                 np.logspace(-2, 1, 50))
         plt.hist2d(driftTime, charge,
                    #norm = LogNorm(),
