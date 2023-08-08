@@ -19,6 +19,7 @@ selection_dtype = np.dtype([("trackID", "u4"),
                             ('x', "f4"),
                             ('y', "f4"),
                             ('z', "f4"),
+                            ("axisPos", "f4")
                             ])
 track_dtype = np.dtype([("trackID", "u4"),
                         ("totalCharge", "f4"),
@@ -58,9 +59,14 @@ class track:
         pca.fit(self.pos, weights = weight)
 
         self.axis = pca.components_[0]
+        if self.axis[2] < 0:
+            # axis[z] should be positive
+            self.axis *= -1
 
         self.axisPos = np.dot(self.pos-self.CoM,
                               self.axis)
+        self.output_arr["axisPos"] = self.axisPos
+
         self.length = np.max(self.axisPos) - np.min(self.axisPos)
         self.colinear = pca.explained_variance_[1] / pca.explained_variance_[0]
         z_axis = np.array([0, 0, 1])
@@ -106,7 +112,7 @@ class track:
     def is_good_track(self):
         #is_colinear = self.colinear < 0.02 #temporary
         #is_long = self.length > 50 #temporary
-        is_zlong = self.length * np.abs(self.cosPolar) > 100
+        is_zlong = self.length * self.cosPolar > 100
         return is_zlong
 
 def track_finder(hits, t0):

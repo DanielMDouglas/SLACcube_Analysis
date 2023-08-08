@@ -114,7 +114,7 @@ def read_and_plot(infileList, use_absolute, correct_sin):
     # dQ/dz is measured from the subsequent hits using either
     # absolute or relative (to the initial hit) charge
     #trackIDs = np.unique(hitData['trackID'])
-    goodTracks = trackData[#(trackData["colinear"]<0.02) &
+    goodTracks = trackData[(trackData["colinear"]<0.02) &
                            #(trackData["length"]>50) &
                            #(np.abs(trackData["cosPolar"])>0.5) &
                            (np.abs(trackData["cosPolar"]) * trackData["length"] > 100) ]
@@ -122,24 +122,22 @@ def read_and_plot(infileList, use_absolute, correct_sin):
     trackIDs = goodTracks["trackID"]
     print("use", len(trackIDs), "good tracks")
 
-    t_lower = 0
-    t_upper = 250
-    t_nbin = 50
-    t_binWidth = (t_upper - t_lower) / t_nbin
-    # Drift time bin: [t_lower, t_upper] evenly divided into t_nbin
-    # Sum up charges at same t
-    # Each component is total charge at t in that bin
+    l_lower = 0.
+    l_upper = 520. # > Detector diagonal
+    l_binWidth = 10.
+    l_nbin = int(np.ceil((l_upper - l_lower)/l_binWidth))
     for thisTrackID in trackIDs:
         trackHits = hitData[hitData['trackID'] == thisTrackID]
 
         cosPolar = trackData[trackData["trackID"] == thisTrackID]["cosPolar"][0]
         sinPolar = np.sqrt(1-cosPolar*cosPolar)
 
-        summedCharges = np.zeros(t_nbin)
+        summedCharges = np.zeros(l_nbin)
+        min_axisPos = min(trackHits["axisPos"])
         for thisHit in trackHits:
-            t = thisHit['z']/v_drift
-            t_ibin = int(np.floor(t/t_binWidth))
-            summedCharges[t_ibin] += thisHit['q']
+            l = thisHit["axisPos"] - min_axisPos # l is in [0, length]
+            l_ibin = int(np.floor(l/l_binWidth))
+            summedCharges[l_ibin] += thisHit['q']
 
         if use_absolute and correct_sin:
             summedCharges *= sinPolar
@@ -147,19 +145,19 @@ def read_and_plot(infileList, use_absolute, correct_sin):
         if not use_absolute:
             norm = summedCharges[0]
             if norm == 0:
+                print("Warning: summedCharges[0] is 0 for ID", thisTrackID)
                 continue
             summedCharges /= norm
 
-        for ibin in range(t_nbin):
+        for ibin in range(l_nbin):
             if summedCharges[ibin] > 0:
-                medianT = t_lower + t_binWidth * (ibin + 0.5)
+                medianL = (l_lower + l_binWidth * (ibin + 0.5))
+                medianT = medianL * cosPolar / v_drift
                 driftTime.append(medianT)
                 charge.append(summedCharges[ibin])
 
-
-
     if use_absolute:
-        bins = (np.linspace(t_lower, t_upper, t_nbin+1),
+        bins = (np.linspace(0,200,51),
                 np.logspace(1,3, 50))
         plt.hist2d(driftTime, charge,
                    #norm = LogNorm(),
@@ -170,7 +168,7 @@ def read_and_plot(infileList, use_absolute, correct_sin):
         else:
             plt.ylabel(r'Absolute Charge [arb.]')
     else:
-        bins = (np.linspace(t_lower + t_binWidth, t_upper, t_nbin),
+        bins = (np.linspace(4,200,50), #first bin is always 1
                 np.logspace(-2, 1, 50))
         plt.hist2d(driftTime, charge,
                    #norm = LogNorm(),
