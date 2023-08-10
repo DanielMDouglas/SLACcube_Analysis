@@ -24,18 +24,16 @@ def main(args):
     driftTime = []
     charge = []
 
-    t_lower = 0
-    t_upper = 250
-    t_nbin = 50
-    t_binWidth = (t_upper - t_lower) / t_nbin
-    # Drift time bin: [t_lower, t_upper] evenly divided into t_nbin
-    # Sum up charges at same t
-    # Each component is total charge at t in that bin
-    summedCharges = np.zeros(t_nbin)
+    l_lower = 0.
+    l_upper = 520. # > Detector diagonal
+    l_binWidth = 10.
+    l_nbin = int(np.ceil((l_upper - l_lower)/l_binWidth))
+    summedCharges = np.zeros(l_nbin)
+    min_axisPos = min(trackHits["axisPos"])
     for thisHit in trackHits:
-        t = thisHit['z']/v_drift
-        t_ibin = int(np.floor(t/t_binWidth))
-        summedCharges[t_ibin] += thisHit['q']
+        l = thisHit["axisPos"] - min_axisPos # l is in [0, length]
+        l_ibin = int(np.floor(l/l_binWidth))
+        summedCharges[l_ibin] += thisHit['q']
     summedCharges *= sinPolar
 
     if not args.use_absolute:
@@ -44,23 +42,24 @@ def main(args):
             return -1
         summedCharges /= norm
 
-    for ibin in range(t_nbin):
+    for ibin in range(l_nbin):
         if summedCharges[ibin] > 0:
-            medianT = t_lower + t_binWidth * (ibin + 0.5)
+            medianL = (l_lower + l_binWidth * (ibin + 0.5))
+            medianT = medianL * cosPolar / v_drift
             driftTime.append(medianT)
             charge.append(summedCharges[ibin])
 
 
     if args.use_absolute:
-        bins = (np.linspace(t_lower, t_upper, t_nbin+1),
+        bins = (np.linspace(0,200,51),
                 np.logspace(1,3, 50))
         plt.hist2d(driftTime, charge,
                    #norm = LogNorm(),
                    bins = bins,
                    cmap = plt.cm.Blues)
-        plt.ylabel(r'Absolute Charge [arb.]')
+        plt.ylabel(r'sin-corrected absolute Charge [arb.]')
     else:
-        bins = (np.linspace(t_lower, t_upper, t_nbin+1),
+        bins = (np.linspace(4,200,50), #first bin is always 1
                 np.logspace(-2, 1, 50))
         plt.hist2d(driftTime, charge,
                    #norm = LogNorm(),
@@ -69,10 +68,10 @@ def main(args):
         plt.ylabel(r'Relative Charge')
 
     # plot a reference line
-    fineTimeSpace = np.linspace(t_lower, t_upper, 1000)
+    fineTimeSpace = np.linspace(0, 200, 1000)
     if args.use_absolute:
-        finePredSpace = [280*np.exp(-xi/64) for xi in fineTimeSpace]
-        string = r'280exp(-t_D/64)'
+        finePredSpace = [201*np.exp(-xi/72) for xi in fineTimeSpace]
+        string = r'201exp(-t_D/72)'
     else:
         finePredSpace = [np.exp(-xi/85) for xi in fineTimeSpace]
         string = r'exp(-t_D/85)'
