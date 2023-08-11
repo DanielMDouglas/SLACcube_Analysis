@@ -56,6 +56,11 @@ class model:
         """
       #  return self(x, self.params)
         return 0
+    def bf_tau(self):
+        """
+        Return tau value for best fit 
+        """
+        return 0
     def string(self):
         """
         Just a nice string with the functional form and current bf parameters
@@ -77,6 +82,8 @@ class expModel (model):
         return np.exp(-x/T)
     def bf(self, x):
         return self(x, self.params)
+    def bf_tau(self):
+        return self.params[0]
     def string(self):
         return r'$\exp(-t_D/' + str(round(self.params[0], 3)) + r')$' 
     def string_errs(self):
@@ -92,6 +99,8 @@ class expModelWithNorm (model):
         return A*np.exp(-x/T)
     def bf(self, x):
         return self(x, self.params[0], self.params[1])
+    def bf_tau(self):
+        return self.params[1]
     def string(self):
         return r'$' + str(round(self.params[0], 3))+ r' \exp(-t_D/' + str(round(self.params[1], 3)) + r')$' 
     def string_errs(self):
@@ -181,6 +190,31 @@ def read_and_plot(infileList, use_absolute, correct_sin):
     plt.colorbar()
     plt.tight_layout()
 
+def projectCharge(tau):
+    fig_project = plt.figure()
+    ax_project = fig_project.add_subplot(111)
+
+    projectedCharge = []
+    for thisTime, thisCharge in zip(driftTime, charge):
+        projectedCharge.append(thisCharge * np.exp(thisTime/tau))
+
+    hist, xedges, _ = ax_project.hist(projectedCharge, bins=100, range=(0,500))
+    ax_project.set_xlabel("Projected Charge")
+
+    def twoGaussian(x, *pars):
+        gaus1 = pars[0] * np.exp(-1.* ((x-pars[1])/pars[2])**2)
+        gaus2 = pars[3] * np.exp(-1.* ((x-pars[4])/pars[5])**2)
+        return gaus1 + gaus2
+
+    init_pars = [1000.,120.,20.,1000.,200.,20.]
+    hx = 0.5 * (xedges[1:]+xedges[:-1])
+    result, pcov = curve_fit(twoGaussian, hx, hist, p0=init_pars)
+    print("Result of two gaussian fit:")
+    print("  mean1 =",result[1]," mean2 =",result[4])
+    fineX = np.linspace(0,500,1000)
+    fineY = [twoGaussian(xi, *result) for xi in fineX]
+    ax_project.plot(fineX, fineY, ls='--', color='r')
+    
 
 def main(args):
     read_and_plot(args.infileList, args.use_absolute, args.correct_sin)
@@ -206,6 +240,8 @@ def main(args):
              thisModel.string(), color = 'red')
     plt.text(text_pos[0], text_pos[1]/1.3,
              thisModel.string_errs(), color = 'red')
+
+    projectCharge(thisModel.bf_tau())
 
     if args.plotfile:
         plt.savefig(args.plotfile)
