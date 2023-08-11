@@ -196,9 +196,15 @@ def projectCharge(tau):
 
     projectedCharge = []
     for thisTime, thisCharge in zip(driftTime, charge):
+        if not args.use_absolute and thisCharge == 1:
+            continue
         projectedCharge.append(thisCharge * np.exp(thisTime/tau))
 
-    hist, xedges, _ = ax_project.hist(projectedCharge, bins=100, range=(0,500))
+    if args.use_absolute:
+        hist_range = (0.,500.)
+    else:
+        hist_range = (0.,5.)
+    hist, xedges, _ = ax_project.hist(projectedCharge, bins=100, range=hist_range)
     ax_project.set_xlabel("Projected Charge")
 
     def twoGaussian(x, *pars):
@@ -206,12 +212,12 @@ def projectCharge(tau):
         gaus2 = pars[3] * np.exp(-1.* ((x-pars[4])/pars[5])**2)
         return gaus1 + gaus2
 
-    init_pars = [1000.,120.,20.,1000.,200.,20.]
+    init_pars = [1000., hist_range[1]/3, hist_range[1]/10, 1000., hist_range[1]/3*2, hist_range[1]/10]
     hx = 0.5 * (xedges[1:]+xedges[:-1])
     result, pcov = curve_fit(twoGaussian, hx, hist, p0=init_pars)
     print("Result of two gaussian fit:")
     print("  mean1 =",result[1]," mean2 =",result[4])
-    fineX = np.linspace(0,500,1000)
+    fineX = np.linspace(*hist_range, 1000)
     fineY = [twoGaussian(xi, *result) for xi in fineX]
     ax_project.plot(fineX, fineY, ls='--', color='r')
     
