@@ -110,10 +110,10 @@ class track:
         return all(conditions)
 
     def is_good_track(self):
-        #is_colinear = self.colinear < 0.02 #temporary
+        is_colinear = self.colinear < 0.02 #temporary
         #is_long = self.length > 50 #temporary
         is_zlong = self.length * self.cosPolar > 100
-        return is_zlong
+        return is_colinear and is_zlong
 
 def track_finder(hits, t0):
     px = hits['px']
@@ -230,7 +230,10 @@ def main(args):
     axes[1,0].axis("off")
     axes[2,0].axis("off")
     axes[2,1].axis("off")
-    plt.show()
+    if args.plotfile:
+        plt.savefig(args.plotfile)
+    else:
+        plt.show()
 
     with h5py.File(args.outfile, 'w') as of:
         of['hits'] = hitArray
@@ -248,6 +251,10 @@ if __name__ == '__main__':
                         required = True,
                         type = str,
                         help = 'HDF5 file to save flattened hit data from good tracks')
+    parser.add_argument('--plotfile', '-p',
+                        default = "",
+                        type = str,
+                        help = 'optional file to which distributions of feature variables are saved')
     args = parser.parse_args()
 
     main(args)

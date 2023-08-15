@@ -101,6 +101,8 @@ class expModelWithNorm (model):
         return self(x, self.params[0], self.params[1])
     def bf_tau(self):
         return self.params[1]
+    def bf_norm(self):
+        return self.params[0]
     def string(self):
         return r'$' + str(round(self.params[0], 3))+ r' \exp(-t_D/' + str(round(self.params[1], 3)) + r')$' 
     def string_errs(self):
@@ -190,6 +192,7 @@ def read_and_plot(infileList, use_absolute, correct_sin):
     plt.colorbar()
     plt.tight_layout()
 
+
 def projectCharge(tau):
     fig_project = plt.figure()
     ax_project = fig_project.add_subplot(111)
@@ -211,16 +214,27 @@ def projectCharge(tau):
         gaus1 = pars[0] * np.exp(-1.* ((x-pars[1])/pars[2])**2)
         gaus2 = pars[3] * np.exp(-1.* ((x-pars[4])/pars[5])**2)
         return gaus1 + gaus2
-
+    
     init_pars = [1000., hist_range[1]/3, hist_range[1]/10, 1000., hist_range[1]/3*2, hist_range[1]/10]
     hx = 0.5 * (xedges[1:]+xedges[:-1])
     result, pcov = curve_fit(twoGaussian, hx, hist, p0=init_pars)
     print("Result of two gaussian fit:")
-    print("  mean1 =",result[1]," mean2 =",result[4])
+    print("  Mean1 =",result[1]," Mean2 =",result[4])
+    print("  Area1 =",result[0]*np.sqrt(np.pi)*result[2]," Area2 = ",result[3]*np.sqrt(np.pi)*result[5])
     fineX = np.linspace(*hist_range, 1000)
     fineY = [twoGaussian(xi, *result) for xi in fineX]
     ax_project.plot(fineX, fineY, ls='--', color='r')
     
+
+def get_calib_const(charge):
+    # charge is ADC count, pedestal subtracted, multiplied with sinPolar, lifetime corrected
+    # Basically y-slice of fit
+    dEdx = 2.2 #MeV/cm
+    recomb = 0.6669
+    pixel_size = 0.4 #cm
+    # dE == pixel_size * dEdx
+    # charge == dE * recomb * calib_const (* exp(-t/tau))
+    return charge / recomb / pixel_size / dEdx
 
 def main(args):
     read_and_plot(args.infileList, args.use_absolute, args.correct_sin)
@@ -247,11 +261,14 @@ def main(args):
     plt.text(text_pos[0], text_pos[1]/1.3,
              thisModel.string_errs(), color = 'red')
 
-    projectCharge(thisModel.bf_tau())
+    if args.use_absolute and args.correct_sin:
+        calib_const = get_calib_const(thisModel.bf_norm())
+        print("Calibration constant :",calib_const,"ADCcount/MeV")
 
     if args.plotfile:
         plt.savefig(args.plotfile)
     else:
+        projectCharge(thisModel.bf_tau())
         plt.show()
             
 if __name__ == '__main__':
