@@ -17,6 +17,8 @@ from plots import *
 from selection import selection_dtype
 from selection import track_dtype
 
+l_binWidth = 10. #mm
+
 class model:
     """
     Generic model with fitting methods
@@ -135,7 +137,6 @@ def read_and_plot(infileList, use_absolute, correct_sin):
 
     l_lower = 0.
     l_upper = 520. # > Detector diagonal
-    l_binWidth = 10.
     l_nbin = int(np.ceil((l_upper - l_lower)/l_binWidth))
     for thisTrackID in trackIDs:
         trackHits = hitData[hitData['trackID'] == thisTrackID]
@@ -226,15 +227,13 @@ def projectCharge(tau):
     ax_project.plot(fineX, fineY, ls='--', color='r')
     
 
-def get_calib_const(charge):
-    # charge is ADC count, pedestal subtracted, multiplied with sinPolar, lifetime corrected
+def get_calib_const(ADC):
+    # ADC is ADC count, pedestal subtracted, lifetime corrected, per l_binWidth[mm]
     # Basically y-slice of fit
     dEdx = 2.2 #MeV/cm
     recomb = 0.6669
-    pixel_size = 0.4 #cm
-    # dE == pixel_size * dEdx
-    # charge == dE * recomb * calib_const (* exp(-t/tau))
-    return charge / recomb / pixel_size / dEdx
+    # ADC = dEdx * recomb * calib_const (* exp(-t/tau))
+    return ADC / recomb / dEdx *10. # ADCcount/MeV
 
 def main(args):
     read_and_plot(args.infileList, args.use_absolute, args.correct_sin)
@@ -261,7 +260,7 @@ def main(args):
     plt.text(text_pos[0], text_pos[1]/1.3,
              thisModel.string_errs(), color = 'red')
 
-    if args.use_absolute and args.correct_sin:
+    if args.use_absolute and not args.correct_sin:
         calib_const = get_calib_const(thisModel.bf_norm())
         print("Calibration constant :",calib_const,"ADCcount/MeV")
 
