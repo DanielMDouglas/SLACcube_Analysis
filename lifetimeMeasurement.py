@@ -10,6 +10,7 @@ from scipy.optimize import curve_fit
 
 import h5py
 import os
+from wpca import WPCA
 
 from utils import *
 from plots import *
@@ -17,7 +18,7 @@ from plots import *
 from selection import selection_dtype
 from selection import track_dtype
 
-l_binWidth = 10. #mm
+l_binWidth = 30. #mm
 
 class model:
     """
@@ -112,9 +113,12 @@ class expModelWithNorm (model):
 
 
 driftTime = []
-charge = []
+dQdxs = []
+dQs = []
+dxs = []
+seg_colinears = []
 
-def read_and_plot(infileList, use_absolute, correct_sin):
+def read_and_plot(infileList):
     # collected all passed input files into an array
     hitData = np.empty(shape = (0), dtype = selection_dtype)
     trackData = np.empty(shape = (0), dtype = track_dtype)
@@ -130,63 +134,61 @@ def read_and_plot(infileList, use_absolute, correct_sin):
     goodTracks = trackData[(trackData["colinear"]<0.02) &
                            #(trackData["length"]>50) &
                            #(np.abs(trackData["cosPolar"])>0.5) &
-                           (np.abs(trackData["cosPolar"]) * trackData["length"] > 100) ]
+                           (np.abs(trackData["cosPolar"]) * trackData["length"] > 250) ]
 
     trackIDs = goodTracks["trackID"]
     print("use", len(trackIDs), "good tracks")
 
     l_lower = 0.
     l_upper = 520. # > Detector diagonal
-    l_nbin = int(np.ceil((l_upper - l_lower)/l_binWidth))
+    nsegment = int(np.ceil((l_upper - l_lower)/l_binWidth))
     for thisTrackID in trackIDs:
+        segment_hits = [np.empty(shape=(0), dtype = selection_dtype) for _ in range(nsegment)]
         trackHits = hitData[hitData['trackID'] == thisTrackID]
 
         cosPolar = trackData[trackData["trackID"] == thisTrackID]["cosPolar"][0]
-        sinPolar = np.sqrt(1-cosPolar*cosPolar)
 
-        summedCharges = np.zeros(l_nbin)
         min_axisPos = min(trackHits["axisPos"])
         for thisHit in trackHits:
             l = thisHit["axisPos"] - min_axisPos # l is in [0, length]
-            l_ibin = int(np.floor(l/l_binWidth))
-            summedCharges[l_ibin] += thisHit['q']
+            isegment = int(np.floor(l/l_binWidth))
+            segment_hits[isegment] = np.append(segment_hits[isegment],thisHit)
 
-        if use_absolute and correct_sin:
-            summedCharges *= sinPolar
-
-        if not use_absolute:
-            norm = summedCharges[0]
-            if norm == 0:
-                print("Warning: summedCharges[0] is 0 for ID", thisTrackID)
+        for thisSegment in segment_hits:
+            if len(thisSegment) < 2:
+                # Require 2 or more hits in a segment
                 continue
-            summedCharges /= norm
+            dQ = np.sum(thisSegment['q'])
+            pos = np.array([thisSegment['x'], thisSegment['y'], thisSegment['z']]).T
+            pca = WPCA()
+            weight = np.stack(3*[thisSegment['q']]).T
+            pca.fit(pos, weights = weight)
+            seg_colinear = pca.explained_variance_[1] / pca.explained_variance_[0]
+            seg_colinears.append(seg_colinear)
+            if seg_colinear > 0.1:
+                continue
+            seg_axis = pca.components_[0]
+            if seg_axis[2] < 0:
+                # axis[z] should be positive
+                seg_axis *= -1
+            seg_axisPos = np.dot(pos, seg_axis)
+            dx = np.max(seg_axisPos) - np.min(seg_axisPos)
+            if np.abs(dx)<1E-9:
+                continue
+            dQs.append(dQ)
+            dxs.append(dx)
+            dQdxs.append(dQ/dx)
+            zmean = np.mean(thisSegment['z'])
+            tmean = zmean / v_drift
+            driftTime.append(tmean)
 
-        for ibin in range(l_nbin):
-            if summedCharges[ibin] > 0:
-                medianL = (l_lower + l_binWidth * (ibin + 0.5))
-                medianT = medianL * cosPolar / v_drift
-                driftTime.append(medianT)
-                charge.append(summedCharges[ibin])
-
-    if use_absolute:
-        bins = (np.linspace(0,200,51),
-                np.logspace(1,3, 50))
-        plt.hist2d(driftTime, charge,
-                   #norm = LogNorm(),
-                   bins = bins,
-                   cmap = plt.cm.Blues)
-        if correct_sin:
-            plt.ylabel(r'sin-corrected absolute Charge [arb.]')
-        else:
-            plt.ylabel(r'Absolute Charge [arb.]')
-    else:
-        bins = (np.linspace(4,200,50), #first bin is always 1
-                np.logspace(-2, 1, 50))
-        plt.hist2d(driftTime, charge,
-                   #norm = LogNorm(),
-                   bins = bins,
-                   cmap = plt.cm.Blues)
-        plt.ylabel(r'Relative Charge')
+    bins = (np.linspace(0,200,51),
+            np.logspace(0,2, 50))
+    plt.hist2d(driftTime, dQdxs,
+               #norm = LogNorm(),
+               bins = bins,
+               cmap = plt.cm.Blues)
+    plt.ylabel(r'dQ/dx [ADC_count/mm]')
 
     plt.semilogy()
     plt.xlabel(r'Drift Time [$\mu$s]')
@@ -194,80 +196,62 @@ def read_and_plot(infileList, use_absolute, correct_sin):
     plt.tight_layout()
 
 
-def projectCharge(tau):
-    fig_project = plt.figure()
-    ax_project = fig_project.add_subplot(111)
+def detail_plots(tau):
+    fig = plt.figure()
 
-    projectedCharge = []
-    for thisTime, thisCharge in zip(driftTime, charge):
-        if not args.use_absolute and thisCharge == 1:
-            continue
-        projectedCharge.append(thisCharge * np.exp(thisTime/tau))
+    ax_dQ = fig.add_subplot(221)
+    ax_dQ.hist(dQs, bins=100)
+    ax_dQ.set_xlabel("dQ [ADC_count]")
+    ax_dx = fig.add_subplot(222)
+    ax_dx.hist(dxs, bins=100)
+    ax_dx.set_xlabel("dx [mm]")
+    ax_colinear = fig.add_subplot(223)
+    ax_colinear.hist(seg_colinears, bins=100)
+    ax_colinear.set_xlabel("colinear parameter")
 
-    if args.use_absolute:
-        hist_range = (0.,500.)
-    else:
-        hist_range = (0.,5.)
-    hist, xedges, _ = ax_project.hist(projectedCharge, bins=100, range=hist_range)
-    ax_project.set_xlabel("Projected Charge")
+    ax_dQdx = fig.add_subplot(224)
+    projected_dQdx = []
+    for thisTime, thisdQdx in zip(driftTime, dQdxs):
+        projected_dQdx.append(thisdQdx * np.exp(thisTime/tau))
 
-    def twoGaussian(x, *pars):
-        gaus1 = pars[0] * np.exp(-1.* ((x-pars[1])/pars[2])**2)
-        gaus2 = pars[3] * np.exp(-1.* ((x-pars[4])/pars[5])**2)
-        return gaus1 + gaus2
+    hist_range = (0.,100.)
+    ax_dQdx.hist(dQdxs, bins=100, range=hist_range, alpha=0.5, label="Raw")
+    hist, xedges, _ = ax_dQdx.hist(projected_dQdx, bins=100, range=hist_range, alpha=0.5, label="Projected")
+    ax_dQdx.set_xlabel("dQ/dx [ADC_count/mm]")
+    ax_dQdx.legend()
     
-    init_pars = [1000., hist_range[1]/3, hist_range[1]/10, 1000., hist_range[1]/3*2, hist_range[1]/10]
-    hx = 0.5 * (xedges[1:]+xedges[:-1])
-    result, pcov = curve_fit(twoGaussian, hx, hist, p0=init_pars)
-    print("Result of two gaussian fit:")
-    print("  Mean1 =",result[1]," Mean2 =",result[4])
-    print("  Area1 =",result[0]*np.sqrt(np.pi)*result[2]," Area2 = ",result[3]*np.sqrt(np.pi)*result[5])
-    fineX = np.linspace(*hist_range, 1000)
-    fineY = [twoGaussian(xi, *result) for xi in fineX]
-    ax_project.plot(fineX, fineY, ls='--', color='r')
-    
+    plt.tight_layout()
 
-def get_calib_const(ADC):
-    # ADC is ADC count, pedestal subtracted, lifetime corrected, per l_binWidth[mm]
+def get_calib_const(dQdx):
+    # dQdx is ADC count, pedestal subtracted, lifetime corrected, per l_binWidth[mm]
     # Basically y-slice of fit
     dEdx = 2.2 #MeV/cm
     recomb = 0.6669
-    # ADC = dEdx * recomb * calib_const (* exp(-t/tau))
-    return ADC / recomb / dEdx *10. # ADCcount/MeV
+    # dQdx = dEdx * recomb * calib_const (* exp(-t/tau))
+    return dQdx / recomb / dEdx *10. # ADCcount/MeV
 
 def main(args):
-    read_and_plot(args.infileList, args.use_absolute, args.correct_sin)
+    read_and_plot(args.infileList)
 
     # fit the observation to a decay model
-    if args.use_absolute:
-        thisModel = expModelWithNorm((100, 100))
-        thisModel.fit((driftTime, charge))
-    else:
-        thisModel = expModel((100,))
-        thisModel.fit((driftTime, charge))
+    thisModel = expModelWithNorm((100, 100))
+    thisModel.fit((driftTime, dQdxs))
 
     # plot the best fit
     fineTimeSpace = np.linspace(0, 200, 1000)
     finePredSpace = [thisModel.bf(xi) for xi in fineTimeSpace]
 
     plt.plot(fineTimeSpace, finePredSpace, ls = '--', color = 'red')
-    if args.use_absolute:
-        text_pos = (10,20)
-    else:
-        text_pos = (10,5)
-    plt.text(text_pos[0], text_pos[1],
-             thisModel.string(), color = 'red')
-    plt.text(text_pos[0], text_pos[1]/1.3,
-             thisModel.string_errs(), color = 'red')
+    plt.text(10,20, thisModel.string(), color = 'red')
+    plt.text(10,15, thisModel.string_errs(), color = 'red')
 
-    if args.use_absolute and not args.correct_sin:
-        calib_const = get_calib_const(thisModel.bf_norm())
-        print("Calibration constant :",calib_const,"ADCcount/MeV")
+    calib_const = get_calib_const(thisModel.bf_norm())
+    print("Calibration constant :",calib_const,"ADCcount/MeV")
 
     if args.plotfile:
         plt.savefig(args.plotfile)
     else:
-        projectCharge(thisModel.bf_tau())
+        detail_plots(thisModel.bf_tau())
         plt.show()
             
 if __name__ == '__main__':
@@ -282,13 +266,6 @@ if __name__ == '__main__':
                         default = "",
                         type = str,
                         help = 'optional file to which resulting lifetime measurement is saved')
-    parser.add_argument('--use_absolute', '-a',
-                        action = 'store_true',
-                        help = 'flag to force the use of absolute charge (default: relative charge)')
-    parser.add_argument('--correct_sin', '-c',
-                        action = 'store_true',
-                        help = 'flag to force charge correction by sin(PolarAngle)\
-                                for each track (default: no correction)')
     args = parser.parse_args()
 
     main(args)
