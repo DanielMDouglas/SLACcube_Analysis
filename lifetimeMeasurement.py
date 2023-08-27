@@ -18,8 +18,6 @@ from plots import *
 from selection import selection_dtype
 from selection import track_dtype
 
-l_binWidth = 30. #mm
-
 class model:
     """
     Generic model with fitting methods
@@ -118,7 +116,7 @@ dQs = []
 dxs = []
 seg_colinears = []
 
-def read_and_plot(infileList):
+def read_files(infileList):
     # collected all passed input files into an array
     hitData = np.empty(shape = (0), dtype = selection_dtype)
     trackData = np.empty(shape = (0), dtype = track_dtype)
@@ -126,7 +124,9 @@ def read_and_plot(infileList):
         with h5py.File(infile, 'r') as f:
             hitData = np.concatenate([hitData, f['hits']])
             trackData = np.concatenate([trackData, f['track']])
+    return hitData, trackData
 
+def calc_dQdx(hitData, trackData):
     # for each track, get the initial hit and the subsequent hits
     # dQ/dz is measured from the subsequent hits using either
     # absolute or relative (to the initial hit) charge
@@ -141,7 +141,14 @@ def read_and_plot(infileList):
 
     l_lower = 0.
     l_upper = 520. # > Detector diagonal
+    l_binWidth = 30. #mm
     nsegment = int(np.ceil((l_upper - l_lower)/l_binWidth))
+    # initialize
+    driftTime.clear()
+    dQdxs.clear()
+    dQs.clear()
+    dxs.clear()
+    seg_colinears.clear()
     for thisTrackID in trackIDs:
         segment_hits = [np.empty(shape=(0), dtype = selection_dtype) for _ in range(nsegment)]
         trackHits = hitData[hitData['trackID'] == thisTrackID]
@@ -181,9 +188,11 @@ def read_and_plot(infileList):
             zmean = np.mean(thisSegment['z'])
             tmean = zmean / v_drift
             driftTime.append(tmean)
+#    return driftTime, dQdxs
 
+def plot_lifetime():
     bins = (np.linspace(0,200,51),
-            np.logspace(0,2, 50))
+            np.logspace(0,2, 51))
     plt.hist2d(driftTime, dQdxs,
                #norm = LogNorm(),
                bins = bins,
@@ -223,7 +232,7 @@ def detail_plots(tau):
     plt.tight_layout()
 
 def get_calib_const(dQdx):
-    # dQdx is ADC count, pedestal subtracted, lifetime corrected, per l_binWidth[mm]
+    # dQdx is ADC count, pedestal subtracted, lifetime corrected, per segment length[mm]
     # Basically y-slice of fit
     dEdx = 2.2 #MeV/cm
     recomb = 0.6669
@@ -231,7 +240,9 @@ def get_calib_const(dQdx):
     return dQdx / recomb / dEdx *10. # ADCcount/MeV
 
 def main(args):
-    read_and_plot(args.infileList)
+    hitData, trackData = read_files(args.infileList)
+    calc_dQdx(hitData, trackData)
+    plot_lifetime()
 
     # fit the observation to a decay model
     thisModel = expModelWithNorm((100, 100))

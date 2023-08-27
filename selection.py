@@ -26,7 +26,8 @@ track_dtype = np.dtype([("trackID", "u4"),
                         ("colinear", "f4"),
                         ("length", "f4"),
                         ("cosPolar", "f4"),
-                        ("passCathode", "?")
+                        ("unixtime", "u8")
+                        #("passCathode", "?")
                         ])
 
 dbscanEps = 30
@@ -72,11 +73,12 @@ class track:
         z_axis = np.array([0, 0, 1])
         self.cosPolar = np.dot(self.axis, z_axis)
         self.totalCharge = np.sum(q)
+        self.unixtime = 0 #set later
 
-        self.passCathode = all( (px > detector_bounds[0][0] + margin) &
-                                (px < detector_bounds[0][1] - margin) &
-                                (py > detector_bounds[1][0] + margin) &
-                                (py < detector_bounds[1][1] - margin) )
+#        self.passCathode = all( (px > detector_bounds[0][0] + margin) &
+#                                (px < detector_bounds[0][1] - margin) &
+#                                (py > detector_bounds[1][0] + margin) &
+#                                (py < detector_bounds[1][1] - margin) )
         
     def draw(self, axes):
         # print (self.CoM, self.axis)
@@ -144,25 +146,25 @@ def drift_distance(dt):
     """
     return detector_bounds[2][0] + drift_direction*dt*clock_interval*v_drift
 
-def trackCut_stats_from_event(event, margin):
-    eventID = event['id']
-
-    t0 = event['ts_start']
-
-    eventMask = eventHitRefs[:,0] == eventID
-
-    eventHits = hitData[eventMask]
-
-    tracks = track_finder(eventHits, t0)
-
-    goodTracks = 0
-    totalTracks = 0
-    for thisTrack in tracks:
-        totalTracks += 1
-        if thisTrack.is_z_fixed(margin):
-            goodTracks += 1
-
-    return goodTracks, totalTracks
+#def trackCut_stats_from_event(event, margin):
+#    eventID = event['id']
+#
+#    t0 = event['ts_start']
+#
+#    eventMask = eventHitRefs[:,0] == eventID
+#
+#    eventHits = hitData[eventMask]
+#
+#    tracks = track_finder(eventHits, t0)
+#
+#    goodTracks = 0
+#    totalTracks = 0
+#    for thisTrack in tracks:
+#        totalTracks += 1
+#        if thisTrack.is_z_fixed(margin):
+#            goodTracks += 1
+#
+#    return goodTracks, totalTracks
 
 def good_tracks_from_event(event, hitData, eventHitRefs, margin):
     eventID = event['id']
@@ -178,6 +180,7 @@ def good_tracks_from_event(event, hitData, eventHitRefs, margin):
     goodTracks = []
     for thisTrack in tracks:
         if thisTrack.is_z_fixed(margin) and thisTrack.is_good_track():
+            thisTrack.unixtime = event['unix_ts']
             goodTracks.append(thisTrack)
 
     return goodTracks
@@ -211,8 +214,9 @@ def main(args):
         trackInfo = np.array((i, thisTrack.totalCharge,
                                  thisTrack.colinear, 
                                  thisTrack.length, 
-                                 thisTrack.cosPolar, 
-                                 thisTrack.passCathode),
+                                 thisTrack.cosPolar,
+                                 thisTrack.unixtime),
+                                 #thisTrack.passCathode),
                              dtype=track_dtype)
         trackArray = np.append(trackArray, trackInfo)
 
