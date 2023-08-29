@@ -29,7 +29,8 @@ bin_hours = 4 #bin width of history [hours], should be a devisor of 24
 lifetimes = []
 datetimes = []
 for _, this_group in  groupby(trackData, 
-                    key = lambda x: (datetime.fromtimestamp(x["unixtime"]).day,
+                    key = lambda x: (datetime.fromtimestamp(x["unixtime"]).month,
+                                     datetime.fromtimestamp(x["unixtime"]).day,
                                      datetime.fromtimestamp(x["unixtime"]).hour // bin_hours)):
     trackInfo = np.array(list(this_group), dtype=track_dtype)
     lifetimeMeasurement.calc_dQdx(hitData, trackInfo)
@@ -43,11 +44,14 @@ for _, this_group in  groupby(trackData,
         datetimes.append(datetime.fromtimestamp((time_start+time_end)/2))
         lifetimes.append(fitModel.bf_tau())
 
+plt.rcParams["font.size"] = 15
 plt.plot(datetimes, lifetimes, marker='x')
 plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m-%d\n%H:%M'))
 plt.xlabel('Date')
 plt.ylabel(r'Lifetime [$\mu$s]')
+plt.ylim(bottom=0)
 plt.tight_layout()
+plt.grid(True)
 if args.plotfile:
     plt.savefig(args.plotfile)
 else:

@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import trackDisplay
-import oneTrackPlot
+#import oneTrackPlot
 
 if __name__ == '__main__':
     import argparse
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     args.use_absolute = True
 
     while True:
-        oneTrackPlot.main(args)
+        #oneTrackPlot.main(args)
         status = trackDisplay.main(args)
         if( status != 0 ):
             break

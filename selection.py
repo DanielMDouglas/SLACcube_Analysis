@@ -7,9 +7,6 @@ import h5py
 
 from sklearn.cluster import DBSCAN
 from wpca import WPCA
-
-#from SLACplots.colors import *
-
 import tqdm
 
 from consts import *
@@ -27,7 +24,6 @@ track_dtype = np.dtype([("trackID", "u4"),
                         ("length", "f4"),
                         ("cosPolar", "f4"),
                         ("unixtime", "u8")
-                        #("passCathode", "?")
                         ])
 
 dbscanEps = 30
@@ -74,14 +70,8 @@ class track:
         self.cosPolar = np.dot(self.axis, z_axis)
         self.totalCharge = np.sum(q)
         self.unixtime = 0 #set later
-
-#        self.passCathode = all( (px > detector_bounds[0][0] + margin) &
-#                                (px < detector_bounds[0][1] - margin) &
-#                                (py > detector_bounds[1][0] + margin) &
-#                                (py < detector_bounds[1][1] - margin) )
         
     def draw(self, axes):
-        # print (self.CoM, self.axis)
         axes.scatter(*self.CoM, color = 'r', s = 10)
         axes.plot(*np.array([self.CoM - 0.5*self.length*self.axis,
                              self.CoM + 0.5*self.length*self.axis]).T,
@@ -91,12 +81,7 @@ class track:
     def get_first_hit(self):
         extremalHits = [self.pos[self.axisPos == np.min(self.axisPos)][0],
                         self.pos[self.axisPos == np.max(self.axisPos)][0]]
-        # print (extremalHits)
         firstPos = min(extremalHits, key = lambda x: x[2])
-        # firstZ = np.min(self.pos[:,2])
-        # # print ("firstZ", firstZ)
-        # firstPos = self.pos[self.pos[:,2] == firstZ][0]
-        # print ("firstPos", firstPos)
         return firstPos
 
     def is_z_fixed(self, marginWidth):
@@ -107,13 +92,10 @@ class track:
                       firstPos[1] > detector_bounds[1][0] + marginWidth,
                       firstPos[1] < detector_bounds[1][1] - marginWidth,
                       ]
-        # print (conditions)
-        # print (firstPos)
         return all(conditions)
 
     def is_good_track(self):
-        is_colinear = self.colinear < 0.02 #temporary
-        #is_long = self.length > 50 #temporary
+        is_colinear = self.colinear < 0.02
         is_zlong = self.length * self.cosPolar > 100
         return is_colinear and is_zlong
 
@@ -129,7 +111,6 @@ def track_finder(hits, t0):
     X = np.array([px, py, z]).T 
     clustering = DBSCAN(eps = dbscanEps,
                         min_samples = 5).fit(X)
-    # print (clustering.labels_)
 
     foundTracks = []
     for thisLabel in np.unique(clustering.labels_):
@@ -145,26 +126,6 @@ def drift_distance(dt):
     Estimate the z-position of a drifting electron
     """
     return detector_bounds[2][0] + drift_direction*dt*clock_interval*v_drift
-
-#def trackCut_stats_from_event(event, margin):
-#    eventID = event['id']
-#
-#    t0 = event['ts_start']
-#
-#    eventMask = eventHitRefs[:,0] == eventID
-#
-#    eventHits = hitData[eventMask]
-#
-#    tracks = track_finder(eventHits, t0)
-#
-#    goodTracks = 0
-#    totalTracks = 0
-#    for thisTrack in tracks:
-#        totalTracks += 1
-#        if thisTrack.is_z_fixed(margin):
-#            goodTracks += 1
-#
-#    return goodTracks, totalTracks
 
 def good_tracks_from_event(event, hitData, eventHitRefs, margin):
     eventID = event['id']
@@ -216,10 +177,10 @@ def main(args):
                                  thisTrack.length, 
                                  thisTrack.cosPolar,
                                  thisTrack.unixtime),
-                                 #thisTrack.passCathode),
                              dtype=track_dtype)
         trackArray = np.append(trackArray, trackInfo)
 
+    # Plot track features
     fig, axes = plt.subplots(nrows=3, ncols=3)
     axes[0,0].hist(trackArray["colinear"], bins=100)
     axes[0,0].set_xlabel("colinear")

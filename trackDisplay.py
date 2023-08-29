@@ -41,8 +41,7 @@ def main(args):
         print("trackID:", thisTrack["trackID"][0],
             ", colinear", round(thisTrack["colinear"][0],4),
             ", length", round(thisTrack["length"][0],1),
-            ", cosPolar", round(thisTrack["cosPolar"][0],3),
-            ", passCathode", thisTrack["passCathode"][0])
+            ", cosPolar", round(thisTrack["cosPolar"][0],3) )
 
     if args.plotfile:
         plt.savefig(args.plotfile)

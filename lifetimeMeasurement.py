@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from mpl_toolkits import mplot3d
 
-#from scipy.optimize import fmin
 from scipy.optimize import curve_fit
 
 import h5py
@@ -33,16 +32,6 @@ class model:
         """
         Do a simple RMS residual minimization given an observation tuple (dep., indep.).
         """
-    #    def RMS(params, x, y):
-    #        residual = [yi - self(xi, params)
-    #                    for xi, yi in zip(x, y)]
-    #        sqResid = [pow(r, 2) for r in residual]
-    #        RMSResid = pow(sum(sqResid), 0.5)
-    #        return RMSResid
-        
-    #    result = fmin(RMS,
-    #                  self.init_params,
-    #                  args = (obs[0], obs[1]))
         result, pcov = curve_fit(self, obs[0], obs[1], p0=self.init_params)
         self.params = result
         self.param_errs = np.sqrt(np.diag(pcov))
@@ -55,7 +44,6 @@ class model:
         """
         Call the function with the best-fit parameters
         """
-      #  return self(x, self.params)
         return 0
     def bf_tau(self):
         """
@@ -78,7 +66,6 @@ class expModel (model):
     Exponential model assuming f(0) = 1
     """
     def __call__(self, x, params):
-        #T, = params
         T = params
         return np.exp(-x/T)
     def bf(self, x):
@@ -94,8 +81,6 @@ class expModelWithNorm (model):
     """
     Exponential model including a normalization term
     """
-   # def __call__(self, x, params):
-   #     A, T = params
     def __call__(self, x, A, T):
         return A*np.exp(-x/T)
     def bf(self, x):
@@ -117,7 +102,6 @@ dxs = []
 seg_colinears = []
 
 def read_files(infileList):
-    # collected all passed input files into an array
     hitData = np.empty(shape = (0), dtype = selection_dtype)
     trackData = np.empty(shape = (0), dtype = track_dtype)
     for infile in infileList:
@@ -127,10 +111,6 @@ def read_files(infileList):
     return hitData, trackData
 
 def calc_dQdx(hitData, trackData):
-    # for each track, get the initial hit and the subsequent hits
-    # dQ/dz is measured from the subsequent hits using either
-    # absolute or relative (to the initial hit) charge
-    #trackIDs = np.unique(hitData['trackID'])
     goodTracks = trackData[(trackData["colinear"]<0.02) &
                            #(trackData["length"]>50) &
                            #(np.abs(trackData["cosPolar"])>0.5) &
@@ -141,7 +121,7 @@ def calc_dQdx(hitData, trackData):
 
     l_lower = 0.
     l_upper = 520. # > Detector diagonal
-    l_binWidth = 30. #mm
+    l_binWidth = 30. #mm, length of each segment
     nsegment = int(np.ceil((l_upper - l_lower)/l_binWidth))
     # initialize
     driftTime.clear()
@@ -167,6 +147,7 @@ def calc_dQdx(hitData, trackData):
                 continue
             dQ = np.sum(thisSegment['q'])
             pos = np.array([thisSegment['x'], thisSegment['y'], thisSegment['z']]).T
+            # Calculate length (=dx) and width for each segment
             pca = WPCA()
             weight = np.stack(3*[thisSegment['q']]).T
             pca.fit(pos, weights = weight)
@@ -188,7 +169,6 @@ def calc_dQdx(hitData, trackData):
             zmean = np.mean(thisSegment['z'])
             tmean = zmean / v_drift
             driftTime.append(tmean)
-#    return driftTime, dQdxs
 
 def plot_lifetime():
     bins = (np.linspace(0,200,51),
@@ -270,7 +250,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('infileList',
-                        nargs = '+',
+                        nargs = 1,
                         type = str,
                         help = 'flattened hit data from selection.py')
     parser.add_argument('--plotfile', '-p',
