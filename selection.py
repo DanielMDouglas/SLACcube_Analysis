@@ -181,24 +181,25 @@ def main(args):
         trackArray = np.append(trackArray, trackInfo)
 
     # Plot track features
-    fig, axes = plt.subplots(nrows=3, ncols=3)
-    axes[0,0].hist(trackArray["colinear"], bins=100)
-    axes[0,0].set_xlabel("colinear")
-    axes[0,0].semilogy()
-    axes[1,1].hist(trackArray["length"], bins=100)
-    axes[1,1].set_xlabel("length")
-    axes[2,2].hist(trackArray["cosPolar"], bins=100)
-    axes[2,2].set_xlabel("cosPolar")
-    axes[0,1].hist2d(trackArray["length"], trackArray["colinear"], cmap=plt.cm.Blues, bins=[20,50], norm = LogNorm())
-    axes[0,2].hist2d(trackArray["cosPolar"], trackArray["colinear"], cmap=plt.cm.Blues, bins=[20,50], norm = LogNorm())
-    axes[1,2].hist2d(trackArray["cosPolar"], trackArray["length"], cmap=plt.cm.Blues, bins=20)
-    axes[1,0].axis("off")
-    axes[2,0].axis("off")
-    axes[2,1].axis("off")
-    if args.plotfile:
-        plt.savefig(args.plotfile)
-    else:
-        plt.show()
+    if args.plotfile or args.displayPlots:
+        fig, axes = plt.subplots(nrows=3, ncols=3)
+        axes[0,0].hist(trackArray["colinear"], bins=100)
+        axes[0,0].set_xlabel("colinear")
+        axes[0,0].semilogy()
+        axes[1,1].hist(trackArray["length"], bins=100)
+        axes[1,1].set_xlabel("length")
+        axes[2,2].hist(trackArray["cosPolar"], bins=100)
+        axes[2,2].set_xlabel("cosPolar")
+        axes[0,1].hist2d(trackArray["length"], trackArray["colinear"], cmap=plt.cm.Blues, bins=[20,50], norm = LogNorm())
+        axes[0,2].hist2d(trackArray["cosPolar"], trackArray["colinear"], cmap=plt.cm.Blues, bins=[20,50], norm = LogNorm())
+        axes[1,2].hist2d(trackArray["cosPolar"], trackArray["length"], cmap=plt.cm.Blues, bins=20)
+        axes[1,0].axis("off")
+        axes[2,0].axis("off")
+        axes[2,1].axis("off")
+        if args.plotfile:
+            plt.savefig(args.plotfile)
+        elif args.displayPlots:
+            plt.show()
 
     with h5py.File(args.outfile, 'w') as of:
         of['hits'] = hitArray
@@ -220,6 +221,9 @@ if __name__ == '__main__':
                         default = "",
                         type = str,
                         help = 'optional file to which distributions of feature variables are saved')
+    parser.add_argument('--displayPlots', '-d',
+                        action = 'store_true',
+                        help = 'display plots to a connected X session instead of printing to file')
     args = parser.parse_args()
 
     main(args)
